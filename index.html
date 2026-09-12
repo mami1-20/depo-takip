@@ -2570,32 +2570,32 @@ let data = [header];
 let criticalCount = 0;
 
 products.forEach(p => {
-  let targetDepots = p.allowedDepots && p.allowedDepots.length > 0 ? p.allowedDepots : [...depots];
+  if (p.allowedDepots && !p.allowedDepots.includes(currentViewDepot)) {
+    return;
+  }
   
-  targetDepots.forEach(d => {
-    let currentSt = getCurrentStock(p.id, d);
-    let critLimit = getProductCriticalLimit(p, d);
-    if (currentSt <= critLimit) {
-      data.push([p.group, p.name, d, currentSt, critLimit]);
-      criticalCount++;
-    }
-  });
+  let currentSt = getCurrentStock(p.id, currentViewDepot);
+  let critLimit = getProductCriticalLimit(p, currentViewDepot);
+  if (currentSt <= critLimit) {
+    data.push([p.group, p.name, currentViewDepot, currentSt, critLimit]);
+    criticalCount++;
+  }
 });
 
 if (criticalCount === 0) {
-  showToast("Bilgi", "Kritik seviyede ürün bulunmuyor.");
+  showToast("Bilgi", `"${currentViewDepot}" deposunda kritik seviyede ürün bulunmuyor.`);
   return;
 }
 
 let ws = XLSX.utils.aoa_to_sheet(data);
 let wb = XLSX.utils.book_new();
-XLSX.utils.book_append_sheet(wb, ws, "Kritik_Stoklar");
+XLSX.utils.book_append_sheet(wb, ws, `Kritik_${currentViewDepot}`);
 
 let now = new Date();
 let dateStr = ('0'+now.getDate()).slice(-2)+'_'+('0'+(now.getMonth()+1)).slice(-2)+'_'+now.getFullYear();
 
-XLSX.writeFile(wb, `Kritik_Stok_Raporu_${dateStr}.xlsx`);
-showToast("İşlem Başarılı", `${criticalCount} adet kritik ürün Excel olarak indirildi.`);
+XLSX.writeFile(wb, `Kritik_Stoklar_${currentViewDepot}_${dateStr}.xlsx`);
+showToast("İşlem Başarılı", `"${currentViewDepot}" için ${criticalCount} adet kritik ürün Excel olarak indirildi.`);
 }
 
 function exportProtectedPdf() {
