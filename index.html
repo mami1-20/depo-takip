@@ -775,7 +775,7 @@ el.value = max;
 }
 
 function isValidProductName(name) {
-let regex = /^[a-zA-Z0-9çÇğĞıİöÖşŞüÜ \s]+$/;
+let regex = /^[a-zA-Z0-9çÇğĞıİöÖşŞüÜ .\s]+$/;
 return regex.test(name);
 }
 
@@ -1815,7 +1815,7 @@ if (name) {
 });
 
 if (hasError) {
-showToast("Geçersiz Karakter!", "Ürün adında sadece harf, rakam ve boşluk kullanılabilir.", true);
+showToast("Geçersiz Karakter!", "Ürün adında sadece harf, rakam, nokta ve boşluk kullanılabilir.", true);
 return;
 }
 
@@ -2467,7 +2467,7 @@ return;
 }
 
 if (!isValidProductName(newName)) {
-showToast("Geçersiz Karakter!", "Ürün adında sadece harf, rakam ve boşluk kullanılabilir.", true);
+showToast("Geçersiz Karakter!", "Ürün adında sadece harf, rakam, nokta ve boşluk kullanılabilir.", true);
 return;
 }
 
