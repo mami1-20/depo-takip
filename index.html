@@ -322,12 +322,20 @@ Kayıt olurken kullandığınız e-posta adresinizi girin. E-posta adresinize ş
   </div>
 </div>
 
-<!-- Sağ Kolon (Önce Kritik Stok Uyarıları, sonra Güncel Stoklar) -->
+<!-- Sağ Kolon (Kritik Uyarıları Küçült/Aç Desteğiyle) -->
 <div style="display:flex; flex-direction:column; gap:10px;">
+  <!-- Açılma Butonu (Simge Durumundayken Görünür) -->
+  <button id="restoreCriticalBtn" class="btn btn-danger" style="width:100%; height:36px; font-size:12px; display:none;" onclick="restoreCriticalAlertCard()">
+    ⚠️ Kritik Uyarılar (Göster) <span id="restoreCriticalBadge" style="background:#fff; color:var(--danger); padding:1px 6px; border-radius:10px; font-size:10px; margin-left:4px;">0</span>
+  </button>
+
   <div class="card" id="criticalAlertCard" style="display:none; border-color:var(--danger);">
     <div class="card-title" style="color:var(--danger); margin-bottom:4px;">
       <span id="criticalAlertTitle">⚠️ Kritik Stok Uyarıları</span>
-      <button id="exportCriticalXlsxBtn" class="btn btn-danger btn-sm" style="display:none;" onclick="exportCriticalXlsx()">📥 Kritik Excel</button>
+      <div style="display:flex; gap:4px; align-items:center;">
+        <button id="exportCriticalXlsxBtn" class="btn btn-danger btn-sm" style="display:none;" onclick="exportCriticalXlsx()">📥 Kritik Excel</button>
+        <button class="btn btn-outline btn-sm" style="height:24px; padding:0 6px; font-size:11px;" onclick="minimizeCriticalAlertCard()" title="Simge Durumuna Küçült">🗕</button>
+      </div>
     </div>
     <div id="criticalAlertList" style="font-size:11px; display:flex; flex-direction:column; gap:4px;"></div>
   </div>
@@ -344,7 +352,7 @@ Kayıt olurken kullandığınız e-posta adresinizi girin. E-posta adresinize ş
     </div>
     <div class="depot-tabs" id="depotTabsContainer"></div>
     <div class="search-box">
-      <input type="text" id="searchInput" oninput="renderStock()" placeholder="Ürün veya grup ara...">
+      <input type="text" id="searchInput" oninput="renderStock()" placeholder="Ürün veya grup ara (Örn: yeni 20)...">
     </div>
     <div class="stock-grid" id="stockList"></div>
   </div>
@@ -877,6 +885,7 @@ let unsubscribers = [];
 let tempReorderProducts = [];
 let draggedIndex = null;
 let quickTxType = 'ÇIKIŞ';
+let isCriticalCardMinimized = false;
 
 function showRegisterScreen() {
 document.getElementById('loginBoxCard').style.display = 'none';
@@ -1470,6 +1479,17 @@ closeProductOrderModal();
 loadGroupDropdown();
 renderStock();
 showToast("İşlem Başarılı", "Ürün sıralaması güncellendi.");
+}
+
+// KRİTİK UYARI KARTI KÜÇÜLTME / AÇMA FONKSİYONLARI
+function minimizeCriticalAlertCard() {
+isCriticalCardMinimized = true;
+renderStock();
+}
+
+function restoreCriticalAlertCard() {
+isCriticalCardMinimized = false;
+renderStock();
 }
 
 // HIZLI STOK İŞLEM MODAL FONKSİYONLARI (TIKLAYINCA AÇILAN)
@@ -2447,7 +2467,8 @@ function renderStock() {
 if (!isLogged) return;
 updateDepotUI();
 
-let searchVal = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase().trim() : '';
+let searchInputEl = document.getElementById('searchInput');
+let searchWords = searchInputEl ? searchInputEl.value.toLowerCase().trim().split(/\s+/) : [];
 
 let html = '';
 let criticalItems = [];
@@ -2470,8 +2491,11 @@ if (isCritical) {
   criticalItems.push({ name: p.name, depot: currentViewDepot, qty: activeDepotStock, limit: critLimit });
 }
 
-if (searchVal && !p.name.toLowerCase().includes(searchVal) && !p.group.toLowerCase().includes(searchVal)) {
-  return;
+// Akıllı arama (Yazılan kelimelerin tamamı ürün adında veya grubunda geçiyorsa eşleşir)
+if (searchWords.length > 0 && searchWords[0] !== "") {
+  let targetText = (p.name + " " + p.group).toLowerCase();
+  let matchesAll = searchWords.every(word => targetText.includes(word));
+  if (!matchesAll) return;
 }
 
 let opening = p.openings && p.openings[currentViewDepot] !== undefined ? parseInputFloat(p.openings[currentViewDepot]) : 0;
@@ -2505,18 +2529,28 @@ document.getElementById('stockList').innerHTML = html || '<div style="text-align
 let alertCard = document.getElementById('criticalAlertCard');
 let alertList = document.getElementById('criticalAlertList');
 let alertTitle = document.getElementById('criticalAlertTitle');
+let restoreBtn = document.getElementById('restoreCriticalBtn');
+let restoreBadge = document.getElementById('restoreCriticalBadge');
 
 if (criticalItems.length > 0) {
-alertCard.style.display = 'block';
-alertTitle.textContent = `⚠️ Kritik Stok Uyarıları (${currentViewDepot})`;
-alertList.innerHTML = criticalItems.map(c => `
-  <div style="display:flex; justify-content:space-between; background:var(--bg); padding:4px 6px; border-radius:4px;">
-    <span><b>${c.name}</b> <small style="color:var(--muted);">(Limit: ${c.limit})</small></span>
-    <span style="color:var(--danger); font-weight:800;">Kalan: ${c.qty}</span>
-  </div>
-`).join('');
+  restoreBadge.textContent = criticalItems.length;
+  if (isCriticalCardMinimized) {
+    alertCard.style.display = 'none';
+    restoreBtn.style.display = 'block';
+  } else {
+    alertCard.style.display = 'block';
+    restoreBtn.style.display = 'none';
+  }
+  alertTitle.textContent = `⚠️ Kritik Stok Uyarıları (${currentViewDepot})`;
+  alertList.innerHTML = criticalItems.map(c => `
+    <div style="display:flex; justify-content:space-between; background:var(--bg); padding:4px 6px; border-radius:4px;">
+      <span><b>${c.name}</b> <small style="color:var(--muted);">(Limit: ${c.limit})</small></span>
+      <span style="color:var(--danger); font-weight:800;">Kalan: ${c.qty}</span>
+    </div>
+  `).join('');
 } else {
-alertCard.style.display = 'none';
+  alertCard.style.display = 'none';
+  restoreBtn.style.display = 'none';
 }
 
 if (isLogged && currentUser.role !== 'görüntüleyen') {
@@ -2851,6 +2885,7 @@ showToast("İşlem Başarılı", `Ürün ${newStatus ? 'aktif' : 'pasif'} olarak
 }
 
 function deleteSelectedProduct() {
+let prodId = document.getElementById('editProdSelect').value;
 let prodId = document.getElementById('editProdSelect').value;
 if (!prodId) {
 showToast("Seçim Yapılmadı", "Lütfen silinecek ürünü seçin.", true);
