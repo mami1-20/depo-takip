@@ -124,9 +124,11 @@ select:focus, input:focus, textarea:focus { border-color: var(--primary); }
 .tab-btn { height: 34px; flex: 1; min-width: 100px; border: 1.5px solid var(--border); background: var(--card); border-radius: 8px; font-size: 12px; font-weight: 800; color: var(--muted); cursor: pointer; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; padding: 0 8px; }
 .tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
-/* Stok Listesi (Orijinal Rahat Görünüm) */
+/* Stok Listesi */
 .stock-grid { display: flex; flex-direction: column; gap: 6px; max-height: 400px; overflow-y: auto; padding-right: 4px; }
-.stock-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--card); }
+.stock-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--card); cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.05s; }
+.stock-row:hover { border-color: var(--primary); background: rgba(37, 99, 235, 0.03); }
+.stock-row:active { transform: scale(0.99); }
 .stock-left { display: flex; flex-direction: column; gap: 1px; }
 .stock-group { font-size: 9px; font-weight: 800; color: var(--primary); text-transform: uppercase; }
 .stock-name { font-size: 13px; font-weight: 700; color: var(--text); }
@@ -135,6 +137,12 @@ select:focus, input:focus, textarea:focus { border-color: var(--primary); }
 .badge { font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 4px; text-transform: uppercase; }
 .badge-ok { background: rgba(16, 185, 129, 0.15); color: var(--success); }
 .badge-warn { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+
+/* Sürükle-Bırak Sıralama Öğesi Stilleri */
+.sortable-item { cursor: grab; user-select: none; transition: background 0.15s, border-color 0.15s, transform 0.15s; }
+.sortable-item:active { cursor: grabbing; }
+.sortable-item.dragging { opacity: 0.35; transform: scale(0.98); }
+.sortable-item.drag-over { border-top: 2px solid var(--primary) !important; }
 
 /* Modal */
 .modal { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.7); z-index: 999; align-items: center; justify-content: center; padding: 12px; backdrop-filter: blur(2px); }
@@ -385,6 +393,48 @@ Kayıt olurken kullandığınız e-posta adresinizi girin. E-posta adresinize ş
 
 </div>
 
+<!-- Hızlı Stok İşlem Modalı (Ürüne Tıklanınca Açılır) -->
+<div class="modal" id="quickTxModal">
+<div class="modal-box" style="max-width: 400px;">
+<div class="modal-header">
+<div>
+  <b style="font-size:14px;" id="quickTxProdName">Hızlı Stok İşlemi</b>
+  <div style="font-size:11px; color:var(--primary); font-weight:700; margin-top:2px;" id="quickTxDepotInfo">Depo: BAR</div>
+</div>
+<button class="btn btn-danger btn-sm" onclick="closeQuickTxModal()">×</button>
+</div>
+
+<input type="hidden" id="quickTxProdId">
+
+<div class="type-switcher" style="margin-bottom:10px;">
+  <div id="quickBtnOut" class="type-btn active-out" onclick="setQuickTxType('ÇIKIŞ')">🔻 ÇIKIŞ</div>
+  <div id="quickBtnIn" class="type-btn" onclick="setQuickTxType('GİRİŞ')">🔺 GİRİŞ</div>
+  <div id="quickBtnTrans" class="type-btn" onclick="setQuickTxType('TRANSFER')">🔄 TRANSFER</div>
+</div>
+
+<div class="field" id="quickTargetDepotWrapper" style="display:none; margin-bottom:8px;">
+  <label>Hedef Depo</label>
+  <select id="quickTargetDepot"></select>
+</div>
+
+<div class="field" style="margin-bottom:8px;">
+  <label id="quickQtyLabel">Miktar (Mevcut Stok: 0)</label>
+  <div class="qty-wrapper">
+    <button type="button" class="qty-btn" onclick="changeQty('quickQtyInput', -1)">-</button>
+    <input type="number" id="quickQtyInput" value="1" min="0.01" step="any" oninput="validateInputLimit(this)">
+    <button type="button" class="qty-btn" onclick="changeQty('quickQtyInput', 1)">+</button>
+  </div>
+</div>
+
+<div class="field" style="margin-bottom:12px;">
+  <label>Açıklama (İsteğe Bağlı)</label>
+  <input type="text" id="quickDescInput" placeholder="Örn: Hızlı Satış / Masa 5">
+</div>
+
+<button class="btn btn-success" style="width:100%; height:38px; font-size:13px;" onclick="saveQuickTransaction()">Hızlı İşlemi Kaydet</button>
+</div>
+</div>
+
 <!-- Çoklu İşlem Modalı -->
 <div class="modal" id="multiTxModal">
 <div class="modal-box" style="max-width: 440px;">
@@ -481,7 +531,7 @@ Kayıt olurken kullandığınız e-posta adresinizi girin. E-posta adresinize ş
 </div>
 </div>
 
-<!-- Ürün Sıralama Modalı -->
+<!-- Ürün Sıralama Modalı (Sürükle-Bırak & Renkli Oklar) -->
 <div class="modal" id="productOrderModal">
 <div class="modal-box" style="max-width: 480px;">
 <div class="modal-header">
@@ -489,7 +539,7 @@ Kayıt olurken kullandığınız e-posta adresinizi girin. E-posta adresinize ş
 <button class="btn btn-danger btn-sm" onclick="closeProductOrderModal()">×</button>
 </div>
 <div style="font-size:11px; color:var(--muted); margin-bottom:8px; line-height:1.4;">
-Ürünleri tek tek yukarı/aşağı oklarla taşıyabilir veya tüm listeyi tek tıkla tersine çevirerek son eklenen ürünleri en alta alabilirsiniz.
+Öğeleri <b>tutarak sürükleyip bırakabilir</b>, <b>yeşil (yukarı)</b> / <b>kırmızı (aşağı)</b> oklarla kaydırabilir ya da listeyi tek tıkla tersine çevirebilirsiniz.
 </div>
 <div style="display:flex; gap:6px; margin-bottom:8px;">
   <button type="button" class="btn btn-outline btn-sm" style="flex:1; font-size:11px;" onclick="reverseProductOrder()">🔄 Listeyi Tersine Çevir</button>
@@ -825,6 +875,8 @@ let currentUser = null;
 let currentCompany = null;
 let unsubscribers = [];
 let tempReorderProducts = [];
+let draggedIndex = null;
+let quickTxType = 'ÇIKIŞ';
 
 function showRegisterScreen() {
 document.getElementById('loginBoxCard').style.display = 'none';
@@ -1316,7 +1368,7 @@ renderStock();
 showToast("İşlem Başarılı", "Depolar güncellendi.");
 }
 
-// ÜRÜN SIRALAMA MODAL FONKSİYONLARI
+// ÜRÜN SIRALAMA MODAL FONKSİYONLARI (SÜRÜKLE-BIRAK & RENKLİ OKLAR)
 function openProductOrderModal() {
 if (!currentUser || currentUser.role === 'görüntüleyen') return;
 tempReorderProducts = JSON.parse(JSON.stringify(products));
@@ -1326,6 +1378,7 @@ document.getElementById('productOrderModal').style.display = 'flex';
 
 function closeProductOrderModal() {
 document.getElementById('productOrderModal').style.display = 'none';
+draggedIndex = null;
 }
 
 function renderProductOrderList() {
@@ -1336,19 +1389,62 @@ if (tempReorderProducts.length === 0) {
 }
 
 container.innerHTML = tempReorderProducts.map((p, idx) => `
-  <div style="display:flex; justify-content:space-between; align-items:center; background:var(--card); padding:6px 8px; border-radius:6px; border:1px solid var(--border);">
+  <div class="sortable-item" draggable="true" data-index="${idx}"
+       ondragstart="handleDragStart(event, ${idx})"
+       ondragover="handleDragOver(event)"
+       ondragleave="handleDragLeave(event)"
+       ondrop="handleDrop(event, ${idx})"
+       ondragend="handleDragEnd(event)"
+       style="display:flex; justify-content:space-between; align-items:center; background:var(--card); padding:6px 8px; border-radius:6px; border:1px solid var(--border);">
     <div style="display:flex; align-items:center; gap:6px; overflow:hidden; flex:1;">
+      <span style="font-size:13px; color:var(--muted); cursor:grab;" title="Sürükle">☰</span>
       <span style="font-size:10px; font-weight:800; color:var(--muted); min-width:24px;">#${idx + 1}</span>
       <span style="font-size:9px; font-weight:800; color:var(--primary); text-transform:uppercase;">[${p.group}]</span>
       <span style="font-size:12px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</span>
       ${p.active === false ? '<span style="font-size:8px; font-weight:800; color:var(--danger); background:rgba(239,68,68,0.1); padding:1px 3px; border-radius:3px;">PASİF</span>' : ''}
     </div>
-    <div style="display:flex; gap:4px;">
-      <button type="button" class="btn btn-outline btn-sm" style="width:28px; height:26px; padding:0;" onclick="moveProductOrder(${idx}, -1)" ${idx === 0 ? 'disabled style="opacity:0.4;"' : ''}>⬆️</button>
-      <button type="button" class="btn btn-outline btn-sm" style="width:28px; height:26px; padding:0;" onclick="moveProductOrder(${idx}, 1)" ${idx === tempReorderProducts.length - 1 ? 'disabled style="opacity:0.4;"' : ''}>⬇️</button>
+    <div style="display:flex; gap:4px; align-items:center;">
+      <button type="button" class="btn btn-success btn-sm" style="width:28px; height:26px; padding:0; font-size:13px;" onclick="moveProductOrder(${idx}, -1)" ${idx === 0 ? 'disabled style="opacity:0.35; cursor:not-allowed;"' : ''} title="Yukarı Taşı">▲</button>
+      <button type="button" class="btn btn-danger btn-sm" style="width:28px; height:26px; padding:0; font-size:13px;" onclick="moveProductOrder(${idx}, 1)" ${idx === tempReorderProducts.length - 1 ? 'disabled style="opacity:0.35; cursor:not-allowed;"' : ''} title="Aşağı Taşı">▼</button>
     </div>
   </div>
 `).join('');
+}
+
+function handleDragStart(e, index) {
+draggedIndex = index;
+e.dataTransfer.effectAllowed = 'move';
+e.currentTarget.classList.add('dragging');
+}
+
+function handleDragOver(e) {
+e.preventDefault();
+e.dataTransfer.dropEffect = 'move';
+let item = e.currentTarget;
+if (item && !item.classList.contains('drag-over')) {
+  item.classList.add('drag-over');
+}
+}
+
+function handleDragLeave(e) {
+e.currentTarget.classList.remove('drag-over');
+}
+
+function handleDrop(e, targetIndex) {
+e.preventDefault();
+e.currentTarget.classList.remove('drag-over');
+if (draggedIndex === null || draggedIndex === targetIndex) return;
+
+let movedItem = tempReorderProducts.splice(draggedIndex, 1)[0];
+tempReorderProducts.splice(targetIndex, 0, movedItem);
+draggedIndex = null;
+renderProductOrderList();
+}
+
+function handleDragEnd(e) {
+e.currentTarget.classList.remove('dragging');
+document.querySelectorAll('.sortable-item').forEach(el => el.classList.remove('drag-over'));
+draggedIndex = null;
 }
 
 function moveProductOrder(index, direction) {
@@ -1374,6 +1470,118 @@ closeProductOrderModal();
 loadGroupDropdown();
 renderStock();
 showToast("İşlem Başarılı", "Ürün sıralaması güncellendi.");
+}
+
+// HIZLI STOK İŞLEM MODAL FONKSİYONLARI (TIKLAYINCA AÇILAN)
+function openQuickTxModal(prodId) {
+if (!currentUser || currentUser.role === 'görüntüleyen') return;
+
+let prod = products.find(p => p.id === prodId);
+if (!prod) return;
+
+document.getElementById('quickTxProdId').value = prodId;
+document.getElementById('quickTxProdName').textContent = prod.name;
+document.getElementById('quickTxDepotInfo').textContent = `📍 Depo: ${currentViewDepot} (${prod.group})`;
+document.getElementById('quickDescInput').value = '';
+document.getElementById('quickQtyInput').value = '1';
+
+setQuickTxType('ÇIKIŞ');
+syncQuickTxLimits();
+
+document.getElementById('quickTxModal').style.display = 'flex';
+}
+
+function closeQuickTxModal() {
+document.getElementById('quickTxModal').style.display = 'none';
+}
+
+function setQuickTxType(type) {
+quickTxType = type;
+document.getElementById('quickBtnOut').className = 'type-btn' + (type === 'ÇIKIŞ' ? ' active-out' : '');
+document.getElementById('quickBtnIn').className = 'type-btn' + (type === 'GİRİŞ' ? ' active-in' : '');
+document.getElementById('quickBtnTrans').className = 'type-btn' + (type === 'TRANSFER' ? ' active-trans' : '');
+
+let targetWrapper = document.getElementById('quickTargetDepotWrapper');
+if (type === 'TRANSFER') {
+  targetWrapper.style.display = 'block';
+  let otherDepots = depots.filter(d => d !== currentViewDepot);
+  document.getElementById('quickTargetDepot').innerHTML = otherDepots.map(d => `<option value="${d}">${d}</option>`).join('');
+} else {
+  targetWrapper.style.display = 'none';
+}
+syncQuickTxLimits();
+}
+
+function syncQuickTxLimits() {
+let prodId = document.getElementById('quickTxProdId').value;
+let currentSt = getCurrentStock(prodId, currentViewDepot);
+let qtyInput = document.getElementById('quickQtyInput');
+let qtyLabel = document.getElementById('quickQtyLabel');
+
+if (quickTxType === 'ÇIKIŞ' || quickTxType === 'TRANSFER') {
+  qtyInput.setAttribute('max', currentSt);
+  qtyLabel.textContent = `Miktar (Mevcut Stok: ${currentSt})`;
+  if (parseInputFloat(qtyInput.value) > currentSt) {
+    qtyInput.value = currentSt > 0 ? currentSt : 1;
+  }
+} else {
+  qtyInput.removeAttribute('max');
+  qtyLabel.textContent = `Miktar (Mevcut Stok: ${currentSt})`;
+}
+}
+
+function saveQuickTransaction() {
+if (!currentUser || currentUser.role === 'görüntüleyen') return;
+
+let prodId = document.getElementById('quickTxProdId').value;
+let qty = parseInputFloat(document.getElementById('quickQtyInput').value);
+let desc = document.getElementById('quickDescInput').value.trim();
+let prod = products.find(p => p.id === prodId);
+
+if (!prod || qty <= 0) {
+  showToast("Eksik Bilgi", "Geçerli bir miktar girin.", true);
+  return;
+}
+
+let d = new Date();
+let dateStr = ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+
+if (quickTxType === 'TRANSFER') {
+  let targetDepot = document.getElementById('quickTargetDepot').value;
+  let currentStock = getCurrentStock(prodId, currentViewDepot);
+
+  if (qty > currentStock) {
+    showToast("Yetersiz Stok!", `"${currentViewDepot}" deposunda ${currentStock} var. Eksiye düşemez.`, true);
+    return;
+  }
+
+  transactions.push({
+    date: dateStr, depot: currentViewDepot, prodId: prod.id, prodName: prod.name,
+    type: 'ÇIKIŞ', qty: qty, desc: `➔ ${targetDepot}` + (desc ? ` (${desc})` : '')
+  });
+  transactions.push({
+    date: dateStr, depot: targetDepot, prodId: prod.id, prodName: prod.name,
+    type: 'GİRİŞ', qty: qty, desc: `⬅ ${currentViewDepot}` + (desc ? ` (${desc})` : '')
+  });
+} else {
+  if (quickTxType === 'ÇIKIŞ') {
+    let currentStock = getCurrentStock(prodId, currentViewDepot);
+    if (qty > currentStock) {
+      showToast("Yetersiz Stok!", `"${currentViewDepot}" deposunda ${currentStock} var. Eksiye düşemez.`, true);
+      return;
+    }
+  }
+  transactions.push({
+    date: dateStr, depot: currentViewDepot, prodId: prod.id, prodName: prod.name,
+    type: quickTxType, qty: qty, desc: desc ? `Hızlı: ${desc}` : 'Hızlı İşlem'
+  });
+}
+
+saveTransactionsToCloud();
+closeQuickTxModal();
+renderStock();
+syncMaxLimit();
+showToast("İşlem Başarılı", `"${prod.name}" (${quickTxType}) kaydedildi.`);
 }
 
 function openPasswordModal() {
@@ -1895,7 +2103,7 @@ if (name) {
   row.querySelectorAll('.dyn-prod-critical').forEach(input => {
     let dName = input.getAttribute('data-depot');
     let critVal = parseInputFloat(input.value);
-    criticalsObj[dName] = critVal < 0 ? 2 : critVal;
+    criticalsObj[dName] = critVal < 0 ? 0 : critVal;
   });
 
   products.push({
@@ -2244,7 +2452,7 @@ let searchVal = document.getElementById('searchInput') ? document.getElementById
 let html = '';
 let criticalItems = [];
 
-// Sadece aktif ürünler ana stok listesinde ve kritik listesinde yer alır
+// Sadece aktif ürünler ana stok listesinde yer alır
 products.forEach(p => {
 if (p.active === false) return;
 
@@ -2255,7 +2463,10 @@ if (p.allowedDepots && !p.allowedDepots.includes(currentViewDepot)) {
 let activeDepotStock = getCurrentStock(p.id, currentViewDepot);
 let critLimit = getProductCriticalLimit(p, currentViewDepot);
 
-if (activeDepotStock <= critLimit) {
+// Kritik limiti 0 olanlar için kritik uyarısı verilmez
+let isCritical = (critLimit > 0) && (activeDepotStock <= critLimit);
+
+if (isCritical) {
   criticalItems.push({ name: p.name, depot: currentViewDepot, qty: activeDepotStock, limit: critLimit });
 }
 
@@ -2274,10 +2485,9 @@ transactions.forEach(t => {
 });
 
 let current = roundNum(opening + inQty - outQty);
-let isCritical = current <= critLimit;
 
 html += `
-  <div class="stock-row">
+  <div class="stock-row" onclick="openQuickTxModal('${p.id}')" title="Hızlı işlem yapmak için tıklayın">
     <div class="stock-left">
       <span class="stock-group">${p.group}</span>
       <span class="stock-name">${p.name}</span>
@@ -2616,7 +2826,7 @@ if (chk.checked) allowedDeps.push(d);
 document.querySelectorAll('.edit-depot-crit').forEach(inp => {
 let d = inp.getAttribute('data-depot');
 let val = parseInputFloat(inp.value);
-criticalsObj[d] = val < 0 ? 2 : val;
+criticalsObj[d] = val < 0 ? 0 : val;
 });
 
 let prod = products.find(p => p.id === prodId);
@@ -2711,7 +2921,8 @@ products.filter(p => p.active !== false).forEach(p => {
   
   let currentSt = getCurrentStock(p.id, currentViewDepot);
   let critLimit = getProductCriticalLimit(p, currentViewDepot);
-  if (currentSt <= critLimit) {
+  // Kritik limiti 0 olanlar Excel kritik listesine dahil edilmez
+  if (critLimit > 0 && currentSt <= critLimit) {
     data.push([p.group, p.name, currentViewDepot, currentSt, critLimit]);
     criticalCount++;
   }
