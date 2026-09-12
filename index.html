@@ -318,6 +318,7 @@ Kayıt olurken kullandığınız e-posta adresinizi girin. E-posta adresinize ş
   <div class="card" id="criticalAlertCard" style="display:none; border-color:var(--danger);">
     <div class="card-title" style="color:var(--danger); margin-bottom:4px;">
       <span id="criticalAlertTitle">⚠️ Kritik Stok Uyarıları</span>
+      <button id="exportCriticalXlsxBtn" class="btn btn-danger btn-sm" style="display:none;" onclick="exportCriticalXlsx()">📥 Kritik Excel</button>
     </div>
     <div id="criticalAlertList" style="font-size:11px; display:flex; flex-direction:column; gap:4px;"></div>
   </div>
@@ -1528,6 +1529,7 @@ document.getElementById('adminForm').style.display = 'none';
 document.getElementById('editDepotsBtn').style.display = 'none';
 document.getElementById('userManagementCard').style.display = 'none';
 document.getElementById('excelExportBtn').style.display = 'none';
+document.getElementById('exportCriticalXlsxBtn').style.display = 'none';
 document.getElementById('pdfExportBtn').style.display = 'inline-flex';
 document.getElementById('reportCard').style.display = 'none';
 } else if (currentUser.role === 'düzenleyen') {
@@ -1535,6 +1537,7 @@ document.getElementById('adminForm').style.display = 'block';
 document.getElementById('editDepotsBtn').style.display = 'inline-flex';
 document.getElementById('userManagementCard').style.display = 'none';
 document.getElementById('excelExportBtn').style.display = 'inline-flex';
+document.getElementById('exportCriticalXlsxBtn').style.display = 'inline-flex';
 document.getElementById('pdfExportBtn').style.display = 'inline-flex';
 document.getElementById('reportCard').style.display = 'block';
 } else if (currentUser.role === 'admin') {
@@ -1542,6 +1545,7 @@ document.getElementById('adminForm').style.display = 'block';
 document.getElementById('editDepotsBtn').style.display = 'inline-flex';
 document.getElementById('userManagementCard').style.display = 'block';
 document.getElementById('excelExportBtn').style.display = 'inline-flex';
+document.getElementById('exportCriticalXlsxBtn').style.display = 'inline-flex';
 document.getElementById('pdfExportBtn').style.display = 'inline-flex';
 document.getElementById('reportCard').style.display = 'block';
 renderUserManagement();
@@ -2558,6 +2562,42 @@ XLSX.writeFile(wb, `Stok_Sayim_${dateStr}.xlsx`);
 showToast("İşlem Başarılı", "Stok raporu Excel olarak indirildi.");
 }
 
+function exportCriticalXlsx() {
+if (!isLogged || currentUser.role === 'görüntüleyen') return;
+
+let header = ["Grup", "Ürün Adı", "Depo", "Mevcut Stok", "Kritik Limit"];
+let data = [header];
+let criticalCount = 0;
+
+products.forEach(p => {
+  let targetDepots = p.allowedDepots && p.allowedDepots.length > 0 ? p.allowedDepots : [...depots];
+  
+  targetDepots.forEach(d => {
+    let currentSt = getCurrentStock(p.id, d);
+    let critLimit = getProductCriticalLimit(p, d);
+    if (currentSt <= critLimit) {
+      data.push([p.group, p.name, d, currentSt, critLimit]);
+      criticalCount++;
+    }
+  });
+});
+
+if (criticalCount === 0) {
+  showToast("Bilgi", "Kritik seviyede ürün bulunmuyor.");
+  return;
+}
+
+let ws = XLSX.utils.aoa_to_sheet(data);
+let wb = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb, ws, "Kritik_Stoklar");
+
+let now = new Date();
+let dateStr = ('0'+now.getDate()).slice(-2)+'_'+('0'+(now.getMonth()+1)).slice(-2)+'_'+now.getFullYear();
+
+XLSX.writeFile(wb, `Kritik_Stok_Raporu_${dateStr}.xlsx`);
+showToast("İşlem Başarılı", `${criticalCount} adet kritik ürün Excel olarak indirildi.`);
+}
+
 function exportProtectedPdf() {
 if (!isLogged) return;
 
@@ -2657,6 +2697,7 @@ if (savedSession) {
               document.getElementById('editDepotsBtn').style.display = 'none';
               document.getElementById('userManagementCard').style.display = 'none';
               document.getElementById('excelExportBtn').style.display = 'none';
+              document.getElementById('exportCriticalXlsxBtn').style.display = 'none';
               document.getElementById('pdfExportBtn').style.display = 'inline-flex';
               document.getElementById('reportCard').style.display = 'none';
             } else if (currentUser.role === 'düzenleyen') {
@@ -2664,6 +2705,7 @@ if (savedSession) {
               document.getElementById('editDepotsBtn').style.display = 'inline-flex';
               document.getElementById('userManagementCard').style.display = 'none';
               document.getElementById('excelExportBtn').style.display = 'inline-flex';
+              document.getElementById('exportCriticalXlsxBtn').style.display = 'inline-flex';
               document.getElementById('pdfExportBtn').style.display = 'inline-flex';
               document.getElementById('reportCard').style.display = 'block';
             } else if (currentUser.role === 'admin') {
@@ -2671,6 +2713,7 @@ if (savedSession) {
               document.getElementById('editDepotsBtn').style.display = 'inline-flex';
               document.getElementById('userManagementCard').style.display = 'block';
               document.getElementById('excelExportBtn').style.display = 'inline-flex';
+              document.getElementById('exportCriticalXlsxBtn').style.display = 'inline-flex';
               document.getElementById('pdfExportBtn').style.display = 'inline-flex';
               document.getElementById('reportCard').style.display = 'block';
               renderUserManagement();
