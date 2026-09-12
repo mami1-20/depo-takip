@@ -2304,6 +2304,7 @@ type = 'GİRİŞ';
 let processedItems = [];
 products.forEach(p => {
 if (p.active === false) return;
+let sourceDepot = document.getElementById('txDepot') ? document.getElementById('txDepot').value : currentViewDepot;
 if (p.allowedDepots && !p.allowedDepots.includes(sourceDepot)) return;
 let prodName = p.name.toLowerCase();
 let words = prodName.split(/\s+/);
@@ -2538,24 +2539,26 @@ let restoreBtn = document.getElementById('restoreCriticalBtn');
 let restoreBadge = document.getElementById('restoreCriticalBadge');
 
 if (criticalItems.length > 0) {
-  restoreBadge.textContent = criticalItems.length;
+  if (restoreBadge) restoreBadge.textContent = criticalItems.length;
   if (isCriticalCardMinimized) {
-    alertCard.style.display = 'none';
-    restoreBtn.style.display = 'block';
+    if (alertCard) alertCard.style.display = 'none';
+    if (restoreBtn) restoreBtn.style.display = 'block';
   } else {
-    alertCard.style.display = 'block';
-    restoreBtn.style.display = 'none';
+    if (alertCard) alertCard.style.display = 'block';
+    if (restoreBtn) restoreBtn.style.display = 'none';
   }
-  alertTitle.textContent = `⚠️ Kritik Stok Uyarıları (${currentViewDepot})`;
-  alertList.innerHTML = criticalItems.map(c => `
-    <div style="display:flex; justify-content:space-between; background:var(--bg); padding:4px 6px; border-radius:4px;">
-      <span><b>${c.name}</b> <small style="color:var(--muted);">(Limit: ${c.limit})</small></span>
-      <span style="color:var(--danger); font-weight:800;">Kalan: ${c.qty}</span>
-    </div>
-  `).join('');
+  if (alertTitle) alertTitle.textContent = `⚠️ Kritik Stok Uyarıları (${currentViewDepot})`;
+  if (alertList) {
+    alertList.innerHTML = criticalItems.map(c => `
+      <div style="display:flex; justify-content:space-between; background:var(--bg); padding:4px 6px; border-radius:4px;">
+        <span><b>${c.name}</b> <small style="color:var(--muted);">(Limit: ${c.limit})</small></span>
+        <span style="color:var(--danger); font-weight:800;">Kalan: ${c.qty}</span>
+      </div>
+    `).join('');
+  }
 } else {
-  alertCard.style.display = 'none';
-  restoreBtn.style.display = 'none';
+  if (alertCard) alertCard.style.display = 'none';
+  if (restoreBtn) restoreBtn.style.display = 'none';
 }
 
 if (isLogged && currentUser.role !== 'görüntüleyen') {
@@ -2960,7 +2963,6 @@ products.filter(p => p.active !== false).forEach(p => {
   
   let currentSt = getCurrentStock(p.id, currentViewDepot);
   let critLimit = getProductCriticalLimit(p, currentViewDepot);
-  // Kritik limiti 0 olanlar Excel kritik listesine dahil edilmez
   if (critLimit > 0 && currentSt <= critLimit) {
     data.push([p.group, p.name, currentViewDepot, currentSt, critLimit]);
     criticalCount++;
