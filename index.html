@@ -250,6 +250,7 @@ Kayıt olurken kullandığınız e-posta adresinizi girin. E-posta adresinize ş
       <div style="display:flex; gap:4px;">
         <button class="btn btn-ai btn-sm" onclick="openMultiTxModal()">📑 Çoklu İşlem</button>
         <button class="btn btn-ai btn-sm" onclick="openAiModal()">🤖 AI</button>
+        <button class="btn btn-outline btn-sm" onclick="openProductOrderModal()" title="Ürün Sıralamasını Değiştir">↕️ Sırala</button>
         <button class="btn btn-outline btn-sm" onclick="openEditProductModal()">✏️</button>
         <button class="btn btn-sm" onclick="openMultiProductModal()">+ Yeni (Çoklu)</button>
       </div>
@@ -327,6 +328,7 @@ Kayıt olurken kullandığınız e-posta adresinizi girin. E-posta adresinize ş
     <div class="card-title">
       <span>📦 Güncel Stoklar</span>
       <div style="display:flex; gap:4px;">
+        <button id="orderStockBtn" class="btn btn-outline btn-sm" style="display:none;" onclick="openProductOrderModal()">↕️ Sırala</button>
         <button id="excelExportBtn" class="btn btn-outline btn-sm" style="display:none;" onclick="exportRealXlsx()">📥 Excel</button>
         <button id="pdfExportBtn" class="btn btn-outline btn-sm" style="display:none;" onclick="exportProtectedPdf()">📥 PDF</button>
         <button id="editDepotsBtn" class="btn btn-outline btn-sm" style="display:none;" onclick="openDepotModal()">✏️ Depolar</button>
@@ -479,6 +481,27 @@ Kayıt olurken kullandığınız e-posta adresinizi girin. E-posta adresinize ş
 </div>
 </div>
 
+<!-- Ürün Sıralama Modalı -->
+<div class="modal" id="productOrderModal">
+<div class="modal-box" style="max-width: 480px;">
+<div class="modal-header">
+<b style="font-size:14px;">↕️ Ürün Sıralamasını Düzenle</b>
+<button class="btn btn-danger btn-sm" onclick="closeProductOrderModal()">×</button>
+</div>
+<div style="font-size:11px; color:var(--muted); margin-bottom:8px; line-height:1.4;">
+Ürünleri tek tek yukarı/aşağı oklarla taşıyabilir veya tüm listeyi tek tıkla tersine çevirerek son eklenen ürünleri en alta alabilirsiniz.
+</div>
+<div style="display:flex; gap:6px; margin-bottom:8px;">
+  <button type="button" class="btn btn-outline btn-sm" style="flex:1; font-size:11px;" onclick="reverseProductOrder()">🔄 Listeyi Tersine Çevir</button>
+</div>
+<div id="sortableProductList" style="max-height: 340px; overflow-y: auto; display:flex; flex-direction:column; gap:4px; border:1px solid var(--border); border-radius:8px; padding:6px; background:var(--bg);"></div>
+<div style="display:flex; gap:6px; margin-top:10px;">
+  <button class="btn btn-success" style="flex:1; height:36px;" onclick="saveReorderedProducts()">Sıralamayı Kaydet</button>
+  <button class="btn btn-outline" style="flex:1; height:36px;" onclick="closeProductOrderModal()">Vazgeç</button>
+</div>
+</div>
+</div>
+
 <!-- Firma Silme Modalı -->
 <div class="modal" id="deleteCompanyModal">
 <div class="modal-box">
@@ -589,13 +612,20 @@ Bu işlem geri alınamaz! Onaylamak için lütfen firma adını (`<span id="conf
 <div class="modal" id="editProductModal">
 <div class="modal-box">
 <div class="modal-header">
-<b style="font-size:14px;">✏️ Ürün Düzenle / Sil</b>
+<b style="font-size:14px;">✏️ Ürün Düzenle / Pasif Yap / Sil</b>
 <button class="btn btn-danger btn-sm" onclick="closeEditProductModal()">×</button>
 </div>
 <div class="field">
 <label>Ürün Seçin</label>
 <select id="editProdSelect" onchange="onSelectProductToEdit()">
   <option value="">Seçiniz...</option>
+</select>
+</div>
+<div class="field">
+<label>Durum (Aktif / Pasif)</label>
+<select id="editStatusSelect" onchange="updateProductStatusUI()">
+  <option value="true">🟢 Aktif (Kullanımda)</option>
+  <option value="false">🔴 Pasif (Arşivlenmiş / Gizli)</option>
 </select>
 </div>
 <div class="field">
@@ -612,6 +642,7 @@ Bu işlem geri alınamaz! Onaylamak için lütfen firma adını (`<span id="conf
 </div>
 <div style="display:flex; gap:6px; margin-top:12px;">
 <button class="btn btn-success" style="flex:2; height:38px;" onclick="saveEditedProduct()">Güncelle</button>
+<button type="button" class="btn btn-outline" id="toggleStatusBtn" style="flex:1.5; height:38px; font-size:11px;" onclick="toggleCurrentProductStatus()">🔴 Pasif Yap</button>
 <button class="btn btn-danger" style="flex:1; height:38px;" onclick="deleteSelectedProduct()">Sil</button>
 </div>
 </div>
@@ -793,6 +824,7 @@ let isLogged = false;
 let currentUser = null;
 let currentCompany = null;
 let unsubscribers = [];
+let tempReorderProducts = [];
 
 function showRegisterScreen() {
 document.getElementById('loginBoxCard').style.display = 'none';
@@ -1284,6 +1316,66 @@ renderStock();
 showToast("İşlem Başarılı", "Depolar güncellendi.");
 }
 
+// ÜRÜN SIRALAMA MODAL FONKSİYONLARI
+function openProductOrderModal() {
+if (!currentUser || currentUser.role === 'görüntüleyen') return;
+tempReorderProducts = JSON.parse(JSON.stringify(products));
+renderProductOrderList();
+document.getElementById('productOrderModal').style.display = 'flex';
+}
+
+function closeProductOrderModal() {
+document.getElementById('productOrderModal').style.display = 'none';
+}
+
+function renderProductOrderList() {
+let container = document.getElementById('sortableProductList');
+if (tempReorderProducts.length === 0) {
+  container.innerHTML = '<div style="text-align:center; padding:10px; color:var(--muted);">Kayıtlı ürün bulunmuyor.</div>';
+  return;
+}
+
+container.innerHTML = tempReorderProducts.map((p, idx) => `
+  <div style="display:flex; justify-content:space-between; align-items:center; background:var(--card); padding:6px 8px; border-radius:6px; border:1px solid var(--border);">
+    <div style="display:flex; align-items:center; gap:6px; overflow:hidden; flex:1;">
+      <span style="font-size:10px; font-weight:800; color:var(--muted); min-width:24px;">#${idx + 1}</span>
+      <span style="font-size:9px; font-weight:800; color:var(--primary); text-transform:uppercase;">[${p.group}]</span>
+      <span style="font-size:12px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</span>
+      ${p.active === false ? '<span style="font-size:8px; font-weight:800; color:var(--danger); background:rgba(239,68,68,0.1); padding:1px 3px; border-radius:3px;">PASİF</span>' : ''}
+    </div>
+    <div style="display:flex; gap:4px;">
+      <button type="button" class="btn btn-outline btn-sm" style="width:28px; height:26px; padding:0;" onclick="moveProductOrder(${idx}, -1)" ${idx === 0 ? 'disabled style="opacity:0.4;"' : ''}>⬆️</button>
+      <button type="button" class="btn btn-outline btn-sm" style="width:28px; height:26px; padding:0;" onclick="moveProductOrder(${idx}, 1)" ${idx === tempReorderProducts.length - 1 ? 'disabled style="opacity:0.4;"' : ''}>⬇️</button>
+    </div>
+  </div>
+`).join('');
+}
+
+function moveProductOrder(index, direction) {
+let targetIndex = index + direction;
+if (targetIndex < 0 || targetIndex >= tempReorderProducts.length) return;
+let temp = tempReorderProducts[index];
+tempReorderProducts[index] = tempReorderProducts[targetIndex];
+tempReorderProducts[targetIndex] = temp;
+renderProductOrderList();
+}
+
+function reverseProductOrder() {
+if (tempReorderProducts.length <= 1) return;
+tempReorderProducts.reverse();
+renderProductOrderList();
+showToast("Bilgi", "Liste tersine çevrildi. Kaydetmeyi unutmayın.");
+}
+
+function saveReorderedProducts() {
+products = JSON.parse(JSON.stringify(tempReorderProducts));
+saveProductsToCloud();
+closeProductOrderModal();
+loadGroupDropdown();
+renderStock();
+showToast("İşlem Başarılı", "Ürün sıralaması güncellendi.");
+}
+
 function openPasswordModal() {
 document.getElementById('settingsUsernameInput').value = currentUser.username;
 document.getElementById('settingsEmailInput').value = currentUser.email || '';
@@ -1527,6 +1619,7 @@ document.getElementById('companyDangerZoneCard').style.display = 'none';
 if (currentUser.role === 'görüntüleyen') {
 document.getElementById('adminForm').style.display = 'none';
 document.getElementById('editDepotsBtn').style.display = 'none';
+document.getElementById('orderStockBtn').style.display = 'none';
 document.getElementById('userManagementCard').style.display = 'none';
 document.getElementById('excelExportBtn').style.display = 'none';
 document.getElementById('exportCriticalXlsxBtn').style.display = 'none';
@@ -1535,6 +1628,7 @@ document.getElementById('reportCard').style.display = 'none';
 } else if (currentUser.role === 'düzenleyen') {
 document.getElementById('adminForm').style.display = 'block';
 document.getElementById('editDepotsBtn').style.display = 'inline-flex';
+document.getElementById('orderStockBtn').style.display = 'inline-flex';
 document.getElementById('userManagementCard').style.display = 'none';
 document.getElementById('excelExportBtn').style.display = 'inline-flex';
 document.getElementById('exportCriticalXlsxBtn').style.display = 'inline-flex';
@@ -1543,6 +1637,7 @@ document.getElementById('reportCard').style.display = 'block';
 } else if (currentUser.role === 'admin') {
 document.getElementById('adminForm').style.display = 'block';
 document.getElementById('editDepotsBtn').style.display = 'inline-flex';
+document.getElementById('orderStockBtn').style.display = 'inline-flex';
 document.getElementById('userManagementCard').style.display = 'block';
 document.getElementById('excelExportBtn').style.display = 'inline-flex';
 document.getElementById('exportCriticalXlsxBtn').style.display = 'inline-flex';
@@ -1593,7 +1688,7 @@ let container = document.getElementById('multiProductListContainer');
 if (products.length === 0) {
 container.innerHTML = '<div style="font-size:11px; color:var(--muted); text-align:center; padding:10px;">Henüz kayıtlı ürün yok. Önce ürün ekleyin.</div>';
 } else {
-let allowedProducts = products.filter(p => !p.allowedDepots || p.allowedDepots.includes(currentViewDepot));
+let allowedProducts = products.filter(p => p.active !== false && (!p.allowedDepots || p.allowedDepots.includes(currentViewDepot)));
 if (allowedProducts.length === 0) {
   container.innerHTML = '<div style="font-size:11px; color:var(--muted); text-align:center; padding:10px;">Bu depoda işlem yapılabilecek ürün yok.</div>';
 } else {
@@ -1703,7 +1798,8 @@ showToast("İşlem Başarılı", "Çoklu işlem kaydedildi.");
 // ÇOKLU ÜRÜN EKLEME
 function openMultiProductModal() {
 if (currentUser.role === 'görüntüleyen') return;
-let groups = [...new Set(products.map(p => p.group))];
+let activeProds = products.filter(p => p.active !== false);
+let groups = [...new Set(activeProds.map(p => p.group))];
 let sel = document.getElementById('multiProdGroupSelect');
 sel.innerHTML = '<option value="">Grup Seçiniz...</option>' + groups.map(g => `<option value="${g}">${g}</option>`).join('') + '<option value="__NEW__">➕ Yeni Grup Ekle...</option>';
 
@@ -1808,7 +1904,8 @@ if (name) {
     name: name,
     openings: openingsObj,
     criticals: criticalsObj,
-    allowedDepots: allowedDeps.length > 0 ? allowedDeps : [...depots]
+    allowedDepots: allowedDeps.length > 0 ? allowedDeps : [...depots],
+    active: true
   });
   newProdsAdded++;
 }
@@ -1865,6 +1962,7 @@ if (!targetDepot) targetDepot = depots.find(d => d !== sourceDepot) || depots[0]
 
 let processedItems = [];
 products.forEach(p => {
+  if (p.active === false) return;
   if (p.allowedDepots && !p.allowedDepots.includes(sourceDepot)) return;
   let prodName = p.name.toLowerCase();
   let words = prodName.split(/\s+/);
@@ -1935,6 +2033,7 @@ let summaryText = [];
 let tempTransactions = [];
 
 products.forEach(p => {
+  if (p.active === false) return;
   if (p.allowedDepots && !p.allowedDepots.includes(currentViewDepot)) return;
   let prodName = p.name.toLowerCase();
   let groupName = p.group.toLowerCase();
@@ -1971,6 +2070,7 @@ type = 'GİRİŞ';
 
 let processedItems = [];
 products.forEach(p => {
+if (p.active === false) return;
 if (p.allowedDepots && !p.allowedDepots.includes(currentViewDepot)) return;
 let prodName = p.name.toLowerCase();
 let words = prodName.split(/\s+/);
@@ -2144,7 +2244,10 @@ let searchVal = document.getElementById('searchInput') ? document.getElementById
 let html = '';
 let criticalItems = [];
 
+// Sadece aktif ürünler ana stok listesinde ve kritik listesinde yer alır
 products.forEach(p => {
+if (p.active === false) return;
+
 if (p.allowedDepots && !p.allowedDepots.includes(currentViewDepot)) {
   return;
 }
@@ -2187,7 +2290,7 @@ html += `
 `;
 });
 
-document.getElementById('stockList').innerHTML = html || '<div style="text-align:center; color:var(--muted); padding:8px; font-size:11px;">Kayıtlı ürün bulunamadı.</div>';
+document.getElementById('stockList').innerHTML = html || '<div style="text-align:center; color:var(--muted); padding:8px; font-size:11px;">Kayıtlı aktif ürün bulunamadı.</div>';
 
 let alertCard = document.getElementById('criticalAlertCard');
 let alertList = document.getElementById('criticalAlertList');
@@ -2329,12 +2432,12 @@ syncMaxLimit();
 }
 
 function loadGroupDropdown() {
-let groups = [...new Set(products.map(p => p.group))];
-let sel = document.getElementById('groupSelect');
-if(sel) {
-let allowedProds = products.filter(p => !p.allowedDepots || p.allowedDepots.includes(currentViewDepot));
+let activeProds = products.filter(p => p.active !== false);
+let allowedProds = activeProds.filter(p => !p.allowedDepots || p.allowedDepots.includes(currentViewDepot));
 let allowedGroups = [...new Set(allowedProds.map(p => p.group))];
 
+let sel = document.getElementById('groupSelect');
+if(sel) {
 sel.innerHTML = '<option value="">Seçiniz...</option>' + allowedGroups.map(g => `<option value="${g}">${g}</option>`).join('');
 document.getElementById('prodSelect').disabled = true;
 document.getElementById('prodSelect').innerHTML = '<option value="">Önce grup seçiniz</option>';
@@ -2350,7 +2453,7 @@ prodSel.innerHTML = '<option value="">Önce grup seçiniz</option>';
 syncMaxLimit();
 return;
 }
-let filtered = products.filter(p => p.group === g && (!p.allowedDepots || p.allowedDepots.includes(currentViewDepot)));
+let filtered = products.filter(p => p.active !== false && p.group === g && (!p.allowedDepots || p.allowedDepots.includes(currentViewDepot)));
 prodSel.innerHTML = filtered.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
 prodSel.disabled = false;
 syncMaxLimit();
@@ -2415,10 +2518,14 @@ showToast("İşlem Başarılı", "Stok hareketi başarıyla kaydedildi.");
 function openEditProductModal() {
 if (currentUser.role === 'görüntüleyen') return;
 let sel = document.getElementById('editProdSelect');
-sel.innerHTML = '<option value="">Seçiniz...</option>' + products.map(p => `<option value="${p.id}">[${p.group}] ${p.name}</option>`).join('');
+sel.innerHTML = '<option value="">Seçiniz...</option>' + products.map(p => `
+  <option value="${p.id}">${p.active === false ? '🔴 [PASİF] ' : ''}[${p.group}] ${p.name}</option>
+`).join('');
 document.getElementById('editGroupInput').value = '';
 document.getElementById('editNameInput').value = '';
+document.getElementById('editStatusSelect').value = 'true';
 document.getElementById('editDepotsContainer').innerHTML = '';
+updateProductStatusUI();
 document.getElementById('editProductModal').style.display = 'flex';
 }
 function closeEditProductModal() { document.getElementById('editProductModal').style.display = 'none'; }
@@ -2431,6 +2538,8 @@ let container = document.getElementById('editDepotsContainer');
 if (prod) {
 document.getElementById('editGroupInput').value = prod.group;
 document.getElementById('editNameInput').value = prod.name;
+document.getElementById('editStatusSelect').value = (prod.active !== false) ? 'true' : 'false';
+updateProductStatusUI();
 
 let allowed = prod.allowedDepots || [...depots];
 container.innerHTML = depots.map(d => {
@@ -2452,14 +2561,39 @@ container.innerHTML = depots.map(d => {
 } else {
 document.getElementById('editGroupInput').value = '';
 document.getElementById('editNameInput').value = '';
+document.getElementById('editStatusSelect').value = 'true';
+updateProductStatusUI();
 container.innerHTML = '';
 }
+}
+
+function updateProductStatusUI() {
+let statusVal = document.getElementById('editStatusSelect').value;
+let toggleBtn = document.getElementById('toggleStatusBtn');
+if (statusVal === 'true') {
+  toggleBtn.textContent = '🔴 Pasif Yap';
+  toggleBtn.className = 'btn btn-outline';
+} else {
+  toggleBtn.textContent = '🟢 Aktif Yap';
+  toggleBtn.className = 'btn btn-success';
+}
+}
+
+function toggleCurrentProductStatus() {
+let statusSelect = document.getElementById('editStatusSelect');
+if (statusSelect.value === 'true') {
+  statusSelect.value = 'false';
+} else {
+  statusSelect.value = 'true';
+}
+updateProductStatusUI();
 }
 
 function saveEditedProduct() {
 let prodId = document.getElementById('editProdSelect').value;
 let newGroup = document.getElementById('editGroupInput').value.trim().toUpperCase();
 let newName = document.getElementById('editNameInput').value.trim();
+let newStatus = document.getElementById('editStatusSelect').value === 'true';
 
 if (!prodId || !newGroup || !newName) {
 showToast("Eksik Bilgi", "Lütfen tüm alanları doldurun.", true);
@@ -2491,6 +2625,7 @@ prod.group = newGroup;
 prod.name = newName; 
 prod.criticals = criticalsObj;
 prod.allowedDepots = allowedDeps.length > 0 ? allowedDeps : [...depots];
+prod.active = newStatus;
 
 transactions.forEach(t => { if (t.prodId === prodId) t.prodName = newName; });
 
@@ -2501,7 +2636,7 @@ closeEditProductModal();
 loadGroupDropdown();
 renderStock();
 syncMaxLimit();
-showToast("İşlem Başarılı", "Ürün bilgileri ve kritik limitleri güncellendi.");
+showToast("İşlem Başarılı", `Ürün ${newStatus ? 'aktif' : 'pasif'} olarak güncellendi.`);
 }
 }
 
@@ -2515,7 +2650,7 @@ return;
 let prod = products.find(p => p.id === prodId);
 let prodName = prod ? prod.name : "Bu ürünü";
 
-let confirmDelete = confirm(`"${prodName}" ürününü silmek istediğinize emin misiniz?`);
+let confirmDelete = confirm(`"${prodName}" ürününü tamamen silmek istediğinize emin misiniz? (Silmek yerine pasife de alabilirsiniz)`);
 if (!confirmDelete) return;
 
 products = products.filter(p => p.id !== prodId);
@@ -2539,7 +2674,7 @@ header.push("Toplam");
 
 let data = [header];
 
-products.forEach(p => {
+products.filter(p => p.active !== false).forEach(p => {
 let row = [p.group, p.name];
 let total = 0;
 depots.forEach(d => {
@@ -2569,7 +2704,7 @@ let header = ["Grup", "Ürün Adı", "Depo", "Mevcut Stok", "Kritik Limit"];
 let data = [header];
 let criticalCount = 0;
 
-products.forEach(p => {
+products.filter(p => p.active !== false).forEach(p => {
   if (p.allowedDepots && !p.allowedDepots.includes(currentViewDepot)) {
     return;
   }
@@ -2607,7 +2742,7 @@ depots.forEach(d => thsHtml += `<th>${d}</th>`);
 thsHtml += `<th>Toplam</th>`;
 
 let rowsHtml = '';
-products.forEach(p => {
+products.filter(p => p.active !== false).forEach(p => {
 let rowStr = `<td style="padding:6px; border:1px solid #cbd5e1;">${p.group}</td>
   <td style="padding:6px; border:1px solid #cbd5e1;"><b>${p.name}</b></td>`;
 let total = 0;
@@ -2695,6 +2830,7 @@ if (savedSession) {
             if (currentUser.role === 'görüntüleyen') {
               document.getElementById('adminForm').style.display = 'none';
               document.getElementById('editDepotsBtn').style.display = 'none';
+              document.getElementById('orderStockBtn').style.display = 'none';
               document.getElementById('userManagementCard').style.display = 'none';
               document.getElementById('excelExportBtn').style.display = 'none';
               document.getElementById('exportCriticalXlsxBtn').style.display = 'none';
@@ -2703,6 +2839,7 @@ if (savedSession) {
             } else if (currentUser.role === 'düzenleyen') {
               document.getElementById('adminForm').style.display = 'block';
               document.getElementById('editDepotsBtn').style.display = 'inline-flex';
+              document.getElementById('orderStockBtn').style.display = 'inline-flex';
               document.getElementById('userManagementCard').style.display = 'none';
               document.getElementById('excelExportBtn').style.display = 'inline-flex';
               document.getElementById('exportCriticalXlsxBtn').style.display = 'inline-flex';
@@ -2711,6 +2848,7 @@ if (savedSession) {
             } else if (currentUser.role === 'admin') {
               document.getElementById('adminForm').style.display = 'block';
               document.getElementById('editDepotsBtn').style.display = 'inline-flex';
+              document.getElementById('orderStockBtn').style.display = 'inline-flex';
               document.getElementById('userManagementCard').style.display = 'block';
               document.getElementById('excelExportBtn').style.display = 'inline-flex';
               document.getElementById('exportCriticalXlsxBtn').style.display = 'inline-flex';
