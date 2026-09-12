@@ -330,11 +330,11 @@ Kayıt olurken kullandığınız e-posta adresinizi girin. E-posta adresinize ş
   </button>
 
   <div class="card" id="criticalAlertCard" style="display:none; border-color:var(--danger);">
-    <div class="card-title" style="color:var(--danger); margin-bottom:4px;">
+    <div class="card-title" style="color:var(--danger); margin-bottom:4px; cursor:pointer;" onclick="minimizeCriticalAlertCard()" title="Simge Durumuna Küçültmek İçin Başlığa Tıklayın">
       <span id="criticalAlertTitle">⚠️ Kritik Stok Uyarıları</span>
       <div style="display:flex; gap:4px; align-items:center;">
-        <button id="exportCriticalXlsxBtn" class="btn btn-danger btn-sm" style="display:none;" onclick="exportCriticalXlsx()">📥 Kritik Excel</button>
-        <button class="btn btn-outline btn-sm" style="height:24px; padding:0 6px; font-size:11px;" onclick="minimizeCriticalAlertCard()" title="Simge Durumuna Küçült">🗕</button>
+        <button id="exportCriticalXlsxBtn" class="btn btn-danger btn-sm" style="display:none;" onclick="event.stopPropagation(); exportCriticalXlsx()">📥 Kritik Excel</button>
+        <span style="font-size:14px; font-weight:bold;" title="Küçült">🗕</span>
       </div>
     </div>
     <div id="criticalAlertList" style="font-size:11px; display:flex; flex-direction:column; gap:4px;"></div>
@@ -890,7 +890,7 @@ let unsubscribers = [];
 let tempReorderProducts = [];
 let draggedIndex = null;
 let quickTxType = 'ÇIKIŞ';
-let isCriticalCardMinimized = false;
+let isCriticalCardMinimized = true; // Varsayılan olarak küçültülmüş başlar
 
 function showRegisterScreen() {
 document.getElementById('loginBoxCard').style.display = 'none';
@@ -1382,7 +1382,7 @@ renderStock();
 showToast("İşlem Başarılı", "Depolar güncellendi.");
 }
 
-// ÜRÜN SIRALAMA MODAL FONKSİYONLARI (SÜRÜKLE-BIRAK & RENKLİ OKLAR)
+// ÜRÜN SIRALAMA MODAL FONKSİYONLARI (SÜRÜKLE-BIRAK & RENKLİ OKlar)
 function openProductOrderModal() {
 if (!currentUser || currentUser.role === 'görüntüleyen') return;
 tempReorderProducts = JSON.parse(JSON.stringify(products));
@@ -2963,6 +2963,7 @@ products.filter(p => p.active !== false).forEach(p => {
   
   let currentSt = getCurrentStock(p.id, currentViewDepot);
   let critLimit = getProductCriticalLimit(p, currentViewDepot);
+  // Kritik limiti 0 olanlar Excel kritik listesine dahil edilmez
   if (critLimit > 0 && currentSt <= critLimit) {
     data.push([p.group, p.name, currentViewDepot, currentSt, critLimit]);
     criticalCount++;
