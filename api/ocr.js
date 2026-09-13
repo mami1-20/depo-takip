@@ -1,19 +1,21 @@
 import { GoogleGenAI } from '@google/genai';
 
 export default async function handler(req, res) {
+  // Sadece POST isteklerine izin ver
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    res.setHeader('Allow', ['POST']);
+    return res.status(405).json({ success: false, error: `Method ${req.method} Not Allowed` });
   }
 
   try {
     const { imageBase64 } = req.body;
     if (!imageBase64) {
-      return res.status(400).json({ success: false, error: 'Fotoğraf gönderilmedi.' });
+      return res.status(400).json({ success: false, error: 'Fotoğraf verisi bulunamadı.' });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return res.status(500).json({ success: false, error: 'GEMINI_API_KEY tanımlanmamış.' });
+      return res.status(500).json({ success: false, error: 'GEMINI_API_KEY çevre değişkeni eksik.' });
     }
 
     const ai = new GoogleGenAI({ apiKey: apiKey });
@@ -29,7 +31,7 @@ export default async function handler(req, res) {
           }
         },
         {
-          text: "Bu fatura veya liste fotoğrafındaki ürünleri ve yanlarındaki adetleri dikkatlice oku. Sadece şu JSON formatında cevap ver, başka hiçbir metin veya açıklama ekleme: [{\"name\": \"Ürün Adı\", \"qty\": 2}]"
+          text: "Bu fatura veya liste fotoğrafındaki ürünleri ve yanlarındaki adetleri dikkatlice oku. Sadece şu JSON formatında cevap ver, başka hiçbir açıklama veya metin ekleme: [{\"name\": \"Ürün Adı\", \"qty\": 2}]"
         }
       ]
     });
@@ -41,7 +43,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ success: true, items });
   } catch (error) {
-    console.error('OCR Hata:', error);
-    return res.status(500).json({ success: false, error: 'Gemini OCR hatası: ' + error.message });
+    console.error('OCR İşlem Hatası:', error);
+    return res.status(500).json({ success: false, error: 'Sunucu hatası: ' + error.message });
   }
 }
