@@ -8,10 +8,15 @@ export default async function handler(req, res) {
   try {
     const { imageBase64 } = req.body;
     if (!imageBase64) {
-      return res.status(400).json({ error: 'Fotoğraf gönderilmedi.' });
+      return res.status(400).json({ success: false, error: 'Fotoğraf gönderilmedi.' });
     }
 
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ success: false, error: 'GEMINI_API_KEY tanımlanmamış.' });
+    }
+
+    const ai = new GoogleGenAI({ apiKey: apiKey });
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
     const response = await ai.models.generateContent({
@@ -24,19 +29,19 @@ export default async function handler(req, res) {
           }
         },
         {
-          text: "Bu fatura veya satış listesi fotoğrafındaki ürünleri ve yanlarındaki adetleri (miktarları) dikkatlice oku. Sadece şu JSON formatında cevap ver ve başka hiçbir açıklama yazma: [{\"name\": \"Ürün Adı\", \"qty\": 2}]"
+          text: "Bu fatura veya liste fotoğrafındaki ürünleri ve yanlarındaki adetleri dikkatlice oku. Sadece şu JSON formatında cevap ver, başka hiçbir metin veya açıklama ekleme: [{\"name\": \"Ürün Adı\", \"qty\": 2}]"
         }
       ]
     });
 
-    let rawText = response.text.trim();
+    let rawText = response.text ? response.text.trim() : '';
     rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
     
     const items = JSON.parse(rawText);
 
     return res.status(200).json({ success: true, items });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: 'Gemini OCR hatası: ' + error.message });
+    console.error('OCR Hata:', error);
+    return res.status(500).json({ success: false, error: 'Gemini OCR hatası: ' + error.message });
   }
 }
