@@ -17,7 +17,8 @@ export default async function handler(req, res) {
 
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
-    const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    // Kararlı latest model uzantısı
+    const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -41,7 +42,6 @@ export default async function handler(req, res) {
 
     const data = await geminiRes.json();
     
-    // Eğer Google API hata döndürdüyse, o hatayı doğrudan ekrana yansıtalım
     if (!geminiRes.ok || !data.candidates || data.candidates.length === 0) {
       console.error('Gemini API Detaylı Hata:', JSON.stringify(data));
       const errorMsg = data.error?.message || 'Bilinmeyen Gemini API hatası';
