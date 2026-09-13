@@ -1,5 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
@@ -17,34 +15,39 @@ export default async function handler(req, res) {
       return res.status(500).json({ success: false, error: 'GEMINI_API_KEY çevre değişkeni eksik.' });
     }
 
-    const ai = new GoogleGenAI({ apiKey: apiKey });
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
-      contents: [
-        {
-          inlineData: {
-            data: base64Data,
-            mimeType: 'image/jpeg'
+    // Doğrudan Google Gemini REST API'ye bağlanıyoruz (Vercel'de paket çakışmalarını tamamen önler)
+    const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                inline_data: {
+                  mime_type: "image/jpeg",
+                  data: base64Data
+                }
+              },
+              {
+                text: "Bu fatura veya liste fotoğrafındaki ürünleri ve yanlarındaki adetleri dikkatlice oku. Sadece şu JSON formatında cevap ver, başka hiçbir açıklama veya metin ekleme: [{\"name\": \"Ürün Adı\", \"qty\": 2}]"
+              }
+            ]
           }
-        },
-        {
-          text: "Bu fatura veya liste fotoğrafındaki ürünleri ve yanlarındaki adetleri dikkatlice oku. Sadece şu JSON formatında cevap ver, başka hiçbir açıklama veya metin ekleme: [{\"name\": \"Ürün Adı\", \"qty\": 2}]"
-        }
-      ]
+        ]
+      })
     });
 
-    let rawText = '';
-    if (typeof response.text === 'function') {
-      rawText = response.text();
-    } else if (response.text) {
-      rawText = response.text;
-    } else if (response.candidates && response.candidates[0]?.content?.parts?.[0]?.text) {
-      rawText = response.candidates[0].content.parts[0].text;
+    const data = await geminiRes.json();
+    
+    if (!data.candidates || data.candidates.length === 0) {
+      throw new Error("Gemini API'den geçerli yanıt alınamadı.");
     }
 
-    rawText = String(rawText).replace(/```json/g, '').replace(/```/g, '').trim();
+    let rawText = data.candidates[0].content.parts[0].text;
+    rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
     
     const items = JSON.parse(rawText);
 
@@ -54,3 +57,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ success: false, error: 'Sunucu hatası: ' + error.message });
   }
 }
+  
