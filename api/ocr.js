@@ -17,8 +17,8 @@ export default async function handler(req, res) {
 
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
-    // Güncel ve kararlı 2.0 Flash modeli
-    const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+    // Standart kararlı endpoint
+    const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
