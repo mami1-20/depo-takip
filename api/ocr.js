@@ -1,7 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 
 export default async function handler(req, res) {
-  // Sadece POST isteklerine izin ver
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ success: false, error: `Method ${req.method} Not Allowed` });
@@ -22,7 +21,7 @@ export default async function handler(req, res) {
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-1.5-flash',
       contents: [
         {
           inlineData: {
@@ -36,8 +35,16 @@ export default async function handler(req, res) {
       ]
     });
 
-    let rawText = response.text ? response.text.trim() : '';
-    rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+    let rawText = '';
+    if (typeof response.text === 'function') {
+      rawText = response.text();
+    } else if (response.text) {
+      rawText = response.text;
+    } else if (response.candidates && response.candidates[0]?.content?.parts?.[0]?.text) {
+      rawText = response.candidates[0].content.parts[0].text;
+    }
+
+    rawText = String(rawText).replace(/```json/g, '').replace(/```/g, '').trim();
     
     const items = JSON.parse(rawText);
 
