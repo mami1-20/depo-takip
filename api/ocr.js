@@ -17,7 +17,6 @@ export default async function handler(req, res) {
 
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
-    // Doğrudan Google Gemini REST API'ye bağlanıyoruz (Vercel'de paket çakışmalarını tamamen önler)
     const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -42,8 +41,11 @@ export default async function handler(req, res) {
 
     const data = await geminiRes.json();
     
-    if (!data.candidates || data.candidates.length === 0) {
-      throw new Error("Gemini API'den geçerli yanıt alınamadı.");
+    // Eğer Google API hata döndürdüyse, o hatayı doğrudan ekrana yansıtalım
+    if (!geminiRes.ok || !data.candidates || data.candidates.length === 0) {
+      console.error('Gemini API Detaylı Hata:', JSON.stringify(data));
+      const errorMsg = data.error?.message || 'Bilinmeyen Gemini API hatası';
+      return res.status(500).json({ success: false, error: `Gemini Hatası: ${errorMsg}` });
     }
 
     let rawText = data.candidates[0].content.parts[0].text;
@@ -53,8 +55,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ success: true, items });
   } catch (error) {
-    console.error('OCR İşlem Hatası:', error);
+    console.error('Sunucu İç Hatası:', error);
     return res.status(500).json({ success: false, error: 'Sunucu hatası: ' + error.message });
   }
 }
-  
