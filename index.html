@@ -112,7 +112,7 @@ max-width: 1300px !important;
 height: auto !important;
 min-height: calc(100vh - 32px);
 display: grid !important;
-grid-template-columns: 1fr !important; /* Giriş yapılmamışsa tek kolon */
+grid-template-columns: 1fr !important;
 grid-template-rows: auto 1fr;
 gap: 12px;
 background: var(--card);
@@ -122,7 +122,6 @@ padding: 12px;
 box-shadow: var(--shadow-lg);
 overflow: visible !important;
 }
-/* Sadece giriş yapıldığında aktif olacak masaüstü grid düzeni */
 .app-layout.logged-in-layout {
 grid-template-columns: 240px 1fr !important;
 }
@@ -131,7 +130,7 @@ grid-column: 1 / -1;
 border-radius: 12px !important;
 }
 .desktop-sidebar {
-display: none; /* Giriş yapılmamışsa kesinlikle gizli */
+display: none;
 flex-direction: column;
 gap: 6px;
 background: var(--bg);
@@ -143,7 +142,7 @@ position: sticky;
 top: 12px;
 }
 .app-layout.logged-in-layout .desktop-sidebar {
-display: flex !important; /* Giriş yapıldığında görünür */
+display: flex !important;
 }
 .desktop-sidebar .nav-item {
 flex: unset !important;
@@ -674,7 +673,7 @@ Veri görüntülemek için raporu getirin.
 </div>
 
 <div class="card">
-<div class="card-title">
+<div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
 <span>📁 Kategori ve Depo Gizleme Yönetimi</span>
 <button class="btn btn-sm btn-success" style="height:28px; font-size:10px;" onclick="openModal('categoryModal'); openCategoryModal();">📁 Düzenle</button>
 </div>
@@ -3222,7 +3221,7 @@ if (pSearch) pSearch.value = prodName;
 if (pSelect) pSelect.value = prodId;
 syncMaxLimit();
 if (listEl) listEl.style.display = 'none';
-if (qInput) {
+if (qInput>0) {
 qInput.focus();
 qInput.select();
 }
