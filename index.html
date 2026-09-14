@@ -364,7 +364,7 @@ gap: 6px;
 .badge-warn { background: rgba(239, 68, 68, 0.12); color: var(--danger); }
 
 .modal { display: none; position: fixed; inset: 0; background: rgba(3,7,18,0.75); z-index: 999; align-items: center; justify-content: center; padding: 12px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-#customConfirmModal, #customPromptModal { z-index: 1050 !important; }
+#customConfirmModal, #customPromptModal, #adminPasswordPromptModal { z-index: 1050 !important; }
 
 .modal-box { background: var(--card); color: var(--text); width: 100%; max-width: 380px; border-radius: 16px; padding: 14px; border: 1.5px solid var(--border); max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
 @keyframes modalPop {
@@ -688,14 +688,15 @@ Veri görüntülemek için raporu getirin.
 </div>
 </div>
 
+<!-- SADECE FİRMA ADMİNİNİN GÖREBİLECEĞİ TEHLİKELİ BÖLGE -->
 <div class="card admin-only-card" id="companyDangerZoneCard" style="display:none; border-color:var(--danger); background: rgba(239,68,68,0.04);">
 <div class="card-title" style="color:var(--danger); margin-bottom:4px;">
 <span>⚠️ Tehlikeli Bölge</span>
 </div>
 <div style="font-size:11px; color:var(--muted); margin-bottom:6px; line-height:1.3;">Sistemdeki tüm ürünleri ve geçmiş raporları kalıcı olarak siler.</div>
 <div style="display:flex; gap:6px;">
-<button class="btn btn-danger" style="flex:1; height:32px; font-size:11px; border-radius:8px;" onclick="showCustomConfirm('Tüm ürünleri ve raporları silmek istediğinize emin misiniz?', confirmDeleteAllProducts)">🗑️ Tüm Ürünleri Sil</button>
-<button class="btn btn-danger" style="flex:1; height:32px; font-size:11px; border-radius:8px;" onclick="showCustomConfirm('Bu firmayı ve tüm verilerini silmek istediğinize emin misiniz?', confirmDeleteCompany)">Firmayı Tamamen Sil</button>
+<button class="btn btn-danger" style="flex:1; height:32px; font-size:11px; border-radius:8px;" onclick="requestAdminPasswordForAction('deleteAllProducts')">🗑️ Tüm Ürünleri Sil</button>
+<button class="btn btn-danger" style="flex:1; height:32px; font-size:11px; border-radius:8px;" onclick="requestAdminPasswordForAction('deleteCompany')">Firmayı Tamamen Sil</button>
 </div>
 </div>
 </div>
@@ -720,6 +721,22 @@ Veri görüntülemek için raporu getirin.
 <div style="display: flex; gap: 6px;">
 <button class="btn btn-outline" style="flex: 1; height: 34px; font-size: 11px;" onclick="closeModal('customConfirmModal')">Vazgeç</button>
 <button class="btn btn-danger" id="customConfirmOkBtn" style="flex: 1; height: 34px; font-size: 11px;">Onayla / Sil</button>
+</div>
+</div>
+</div>
+
+<!-- MEVCUT ŞİFRE DOĞRULAMA MODALI -->
+<div class="modal" id="adminPasswordPromptModal">
+<div class="modal-box" style="max-width: 320px; text-align: center; padding: 16px;">
+<div style="font-size: 24px; margin-bottom: 6px;">🔐</div>
+<b style="font-size: 12px; display: block; margin-bottom: 6px; color: var(--text);" id="adminPromptActionTitle">Admin Şifre Doğrulaması</b>
+<div style="font-size: 11px; color: var(--muted); margin-bottom: 10px; line-height: 1.4;">Bu kritik işlem için lütfen mevcut admin şifrenizi girin:</div>
+<div class="field" style="margin-bottom: 12px;">
+<input type="password" id="adminActionPinInput" placeholder="Admin Şifreniz" style="height: 36px; font-size: 12px; text-align: center;">
+</div>
+<div style="display: flex; gap: 6px;">
+<button class="btn btn-outline" style="flex: 1; height: 34px; font-size: 11px;" onclick="closeModal('adminPasswordPromptModal')">Vazgeç</button>
+<button class="btn btn-danger" style="flex: 1; height: 34px; font-size: 11px;" onclick="verifyAdminPasswordAndExecute()">Şifreyi Onayla</button>
 </div>
 </div>
 </div>
@@ -1056,6 +1073,45 @@ closeModal('customConfirmModal');
 if (onConfirmCallback) onConfirmCallback();
 });
 openModal('customConfirmModal');
+}
+
+let pendingAdminAction = null;
+
+function requestAdminPasswordForAction(actionType) {
+if (!currentUser || currentUser.role !== 'admin') {
+showToast("Yetki Yok", "Bu işlem için admin yetkisi gerekiyor.", true);
+return;
+}
+pendingAdminAction = actionType;
+let pinInp = document.getElementById('adminActionPinInput');
+if (pinInp) pinInp.value = '';
+let titleEl = document.getElementById('adminPromptActionTitle');
+if (titleEl) {
+titleEl.textContent = actionType === 'deleteAllProducts' ? '⚠️ Tüm Ürünleri Sil (Şifre Onayı)' : '⚠️ Firmayı Tamamen Sil (Şifre Onayı)';
+}
+openModal('adminPasswordPromptModal');
+setTimeout(() => { if(pinInp) pinInp.focus(); }, 100);
+}
+
+function verifyAdminPasswordAndExecute() {
+let pinInp = document.getElementById('adminActionPinInput');
+if (!pinInp) return;
+let enteredPin = pinInp.value.trim();
+
+if (!enteredPin || enteredPin !== currentUser.pin) {
+showToast("Hata", "Şifre yanlış! İşlem iptal edildi.", true);
+return;
+}
+
+closeModal('adminPasswordPromptModal');
+let action = pendingAdminAction;
+pendingAdminAction = null;
+
+if (action === 'deleteAllProducts') {
+confirmDeleteAllProducts();
+} else if (action === 'deleteCompany') {
+openDeleteCompanyModal();
+}
 }
 
 function showCustomPrompt(title, defaultVal, onSaveCallback) {
@@ -2179,7 +2235,7 @@ ${groupOptions}
 <input type="text" class="mgmt-new-group" placeholder="Yeni Kategori" style="flex:1; min-width:75px; height:34px; font-size:11px; display:none;" onblur="autoSaveProduct('${p.id}')">
 <input type="text" class="mgmt-name" value="${p.name}" placeholder="Ürün Adı" style="flex:1.5; min-width:100px; height:34px; font-size:11px;" onchange="autoSaveProduct('${p.id}')">
 <div style="display:flex; gap:4px; align-items:center;">
-<button type="button" class="btn ${isActive ? 'btn-success' : 'btn-danger'} btn-sm" style="height:34px; font-size:11px; font-weight:800; padding:0 10px;" onclick="toggleMgmtProductStatus('${p.id}')" title="${isActive ? 'Ürünü Gizle' : 'Ürünü Göster'}">${isActive ? 'AÇIK' : 'KAPALI'}</button>
+<button type="button" class="btn ${isActive ? 'btn-success' : 'btn-danger'} btn-sm" style="height:34px; font-size:10px; font-weight:800; padding:0 10px;" onclick="toggleMgmtProductStatus('${p.id}')" title="${isActive ? 'Ürünü Pasif Yap' : 'Ürünü Aktif Yap'}">${isActive ? 'AKTİF' : 'PASİF'}</button>
 ${currentUser.role === 'admin' ? `<button type="button" class="btn btn-danger btn-sm" style="height:34px; font-size:11px; padding:0 8px;" onclick="showCustomConfirm('${p.name} silinsin mi?', () => deleteMgmtProduct('${p.id}'))" title="Sil">🗑️</button>` : ''}
 </div>
 </div>
@@ -2828,7 +2884,12 @@ setTimeout(() => {
   if (startVal && endVal) filterReport(false); 
 }, 300);
 switchPage('stoklar');
+
+// Sadece ilk oturum açılışında bir kez hoş geldiniz bildirimi gösterilir (Sayfa yenilemelerinde çıkmaz)
+if (!sessionStorage.getItem('sys_welcome_shown')) {
 showToast("Hoş Geldiniz", currentUser.username);
+sessionStorage.setItem('sys_welcome_shown', 'true');
+}
 }
 
 function selectCustomDateForInit(inputId, dateStr) {
@@ -2841,6 +2902,7 @@ if (displayEl) { let p = dateStr.split('-'); displayEl.textContent = `${p[2]}.${
 function logout() {
 isLogged = false; currentUser = null; currentCompany = null;
 try { localStorage.removeItem('sys_logged_user'); } catch(e){}
+try { sessionStorage.removeItem('sys_welcome_shown'); } catch(e){}
 try { auth.signOut(); } catch(e){}
 
 let layoutContainer = document.getElementById('appLayoutContainer');
