@@ -363,9 +363,6 @@ gap: 6px;
 .badge-ok { background: rgba(16, 185, 129, 0.12); color: var(--success); }
 .badge-warn { background: rgba(239, 68, 68, 0.12); color: var(--danger); }
 
-.sortable-item { cursor: grab; user-select: none; }
-.sortable-item:active { cursor: grabbing; }
-
 .modal { display: none; position: fixed; inset: 0; background: rgba(3,7,18,0.75); z-index: 999; align-items: center; justify-content: center; padding: 12px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 #customConfirmModal, #customPromptModal { z-index: 1050 !important; }
 
@@ -866,17 +863,21 @@ Veri görüntülemek için raporu getirin.
 </div>
 </div>
 
+<!-- YENİ NESİL PRATİK ÜRÜN SIRALAMA MODALI (SIRA NO YAZMA & ARAMA ÖZELLİKLİ) -->
 <div class="modal" id="productOrderModal">
-<div class="modal-box" style="max-width: 340px;">
+<div class="modal-box" style="max-width: 400px; width: 95%;">
 <div class="modal-header">
 <b style="font-size:12px;">↕️ Ürün Sıralamasını Düzenle</b>
 <button class="btn btn-danger btn-sm" style="height:26px; width:26px; padding:0; font-size:11px;" onclick="closeModal('productOrderModal'); closeProductOrderModal();">×</button>
 </div>
-<div style="font-size:10px; color:var(--muted); margin-bottom:6px; line-height:1.3;">Sürükleyip bırakabilir, oklarla kaydırabilir ya da tersine çevirebilirsiniz.</div>
+<div style="font-size:10px; color:var(--muted); margin-bottom:6px; line-height:1.3;">Sıra kutusuna direkt sayı yazarak (Örn: 1 yazıp) ürünün yerini anında değiştirebilirsiniz.</div>
+<div class="search-box" style="margin-bottom:6px;">
+<input type="text" id="productOrderSearchInput" oninput="renderProductOrderList()" placeholder="Listede ürün ara...">
+</div>
 <div style="display:flex; gap:6px; margin-bottom:6px;">
 <button type="button" class="btn btn-outline btn-sm" style="flex:1; font-size:10px; height:28px;" onclick="reverseProductOrder()">🔄 Listeyi Tersine Çevir</button>
 </div>
-<div id="sortableProductList" style="max-height: 200px; overflow-y: auto; display:flex; flex-direction:column; gap:4px; border:1.5px solid var(--border); border-radius:8px; padding:5px; background:var(--bg);"></div>
+<div id="sortableProductList" style="max-height: 240px; overflow-y: auto; display:flex; flex-direction:column; gap:4px; border:1.5px solid var(--border); border-radius:8px; padding:6px; background:var(--bg);"></div>
 <div style="display:flex; gap:6px; margin-top:8px;">
 <button class="btn btn-success" style="flex:1; height:36px; font-size:11px;" onclick="saveReorderedProducts()">Sıralamayı Kaydet</button>
 <button class="btn btn-outline" style="flex:1; height:36px; font-size:11px;" onclick="closeModal('productOrderModal'); closeProductOrderModal();">Vazgeç</button>
@@ -2384,28 +2385,73 @@ showToast("Başarılı", "Depolar güncellendi.");
 function openProductOrderModal() {
 if (!currentUser || currentUser.role === 'görüntüleyen') return;
 tempReorderProducts = JSON.parse(JSON.stringify(products));
+let searchInput = document.getElementById('productOrderSearchInput');
+if (searchInput) searchInput.value = '';
 renderProductOrderList();
 openModal('productOrderModal');
 }
-function closeProductOrderModal() { draggedIndex = null; }
+function closeProductOrderModal() {}
+
 function renderProductOrderList() {
 let container = document.getElementById('sortableProductList');
 if (!container) return;
-container.innerHTML = tempReorderProducts.length === 0 ? '<div style="text-align:center; color:var(--muted);">Ürün yok.</div>' : tempReorderProducts.map((p, idx) => `
-<div class="sortable-item" draggable="true" ondragstart="draggedIndex=${idx}" ondragover="event.preventDefault()" ondrop="let m=tempReorderProducts.splice(draggedIndex,1)[0]; tempReorderProducts.splice(${idx},0,m); renderProductOrderList();" style="display:flex; justify-content:space-between; align-items:center; background:var(--card); padding:6px 8px; border-radius:7px; border:1.5px solid var(--border);">
-<div><b>#${idx+1}</b> [${p.group}] ${p.name}</div>
-<div style="display:flex; gap:4px;"><button type="button" class="btn btn-success btn-sm" style="width:24px; height:24px;" onclick="moveProductOrder(${idx}, -1)">▲</button><button type="button" class="btn btn-danger btn-sm" style="width:24px; height:24px;" onclick="moveProductOrder(${idx}, 1)">▼</button></div>
+let rawSearch = document.getElementById('productOrderSearchInput')?.value || '';
+let searchWords = turkishNormalize(rawSearch.trim()).split(/\s+/);
+
+let filtered = tempReorderProducts.map((p, origIdx) => ({ p, origIdx })).filter(item => {
+if (!rawSearch.trim()) return true;
+let targetText = turkishNormalize(item.p.name + " " + item.p.group);
+return searchWords.every(w => targetText.includes(w));
+});
+
+if (filtered.length === 0) {
+container.innerHTML = '<div style="text-align:center; color:var(--muted); padding:10px;">Ürün bulunamadı.</div>';
+return;
+}
+
+container.innerHTML = filtered.map(({ p, origIdx }) => `
+<div style="display:flex; justify-content:space-between; align-items:center; background:var(--card); padding:6px 8px; border-radius:7px; border:1.5px solid var(--border); gap:6px;">
+<div style="flex:1; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">[<b>${p.group}</b>] ${p.name}</div>
+<div style="display:flex; align-items:center; gap:4px;">
+<span style="font-size:9px; color:var(--muted);">Sıra:</span>
+<input type="number" min="1" max="${tempReorderProducts.length}" value="${origIdx + 1}" style="width:50px; height:28px; font-size:11px; text-align:center; font-weight:800;" onchange="changeProductOrderIndex(${origIdx}, this.value)">
+</div>
 </div>
 `).join('');
 }
+
+function changeProductOrderIndex(oldIdx, newPosVal) {
+let newPos = parseInt(newPosVal, 10);
+if (isNaN(newPos)) return;
+newPos = newPos - 1; // 0 tabanlı indeks
+if (newPos < 0) newPos = 0;
+if (newPos >= tempReorderProducts.length) newPos = tempReorderProducts.length - 1;
+
+let item = tempReorderProducts.splice(oldIdx, 1)[0];
+tempReorderProducts.splice(newPos, 0, item);
+renderProductOrderList();
+}
+
 function moveProductOrder(idx, dir) {
 let target = idx + dir;
 if (target < 0 || target >= tempReorderProducts.length) return;
 let temp = tempReorderProducts[idx]; tempReorderProducts[idx] = tempReorderProducts[target]; tempReorderProducts[target] = temp;
 renderProductOrderList();
 }
-function reverseProductOrder() { tempReorderProducts.reverse(); renderProductOrderList(); }
-function saveReorderedProducts() { products = JSON.parse(JSON.stringify(tempReorderProducts)); saveProductsToCloud(); closeModal('productOrderModal'); closeProductOrderModal(); renderStock(); showToast("Başarılı", "Sıralama kaydedildi."); }
+
+function reverseProductOrder() { 
+tempReorderProducts.reverse(); 
+renderProductOrderList(); 
+}
+
+function saveReorderedProducts() { 
+products = JSON.parse(JSON.stringify(tempReorderProducts)); 
+saveProductsToCloud(); 
+closeModal('productOrderModal'); 
+closeProductOrderModal(); 
+renderStock(); 
+showToast("Başarılı", "Sıralama kaydedildi."); 
+}
 
 function minimizeCriticalAlertCard() { 
 isCriticalCardMinimized = !isCriticalCardMinimized; 
@@ -2999,7 +3045,7 @@ if (restoreBtn) restoreBtn.style.display = 'block';
 } else {
 if (alertCard) alertCard.style.display = 'block';
 if (restoreBtn) restoreBtn.style.display = 'none';
-if (alertList) alertList.innerHTML = criticalItems.map(c => `<div style="display:flex; justify-content:space-between; background:var(--card); padding:5px 8px; border-radius:6px; border:1.5px solid var(--border);"><span><b>${c.name}</b></span><span style="color:var(--danger); font-weight:800;">Kalan: ${c.qty}</span></div>`).join('');
+if (alertList) alertList.innerHTML = criticalItems.map(c => `<div style="display:flex; justify-content:space-between; background:var(--card); padding:5px 8px; border-radius:6px; border:1px solid var(--border);"><span><b>${c.name}</b></span><span style="color:var(--danger); font-weight:800;">Kalan: ${c.qty}</span></div>`).join('');
 }
 } else {
 if (alertCard) alertCard.style.display = 'none';
