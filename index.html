@@ -19,8 +19,8 @@ document.documentElement.setAttribute('data-theme', 'dark');
 } catch(e) {}
 </script>
 
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2228%22 fill=%22%236366f1%22/><text y=%22.9em%22 font-size=%2260%22 x=%2250%%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22>📦</text></svg>">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2228%22 fill=%22%236366f1%22/><text y=%22.9em%22 font-size=%2260%22 x=%2250%%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22>📦</text></svg>">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2228%22 fill=%22%232563eb%22/><text y=%22.9em%22 font-size=%2260%22 x=%2250%%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22>📦</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2228%22 fill=%22%232563eb%22/><text y=%22.9em%22 font-size=%2260%22 x=%2250%%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22>📦</text></svg>">
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -30,47 +30,41 @@ document.documentElement.setAttribute('data-theme', 'dark');
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <style>
 :root {
---primary: #6366f1;
---primary-hover: #4f46e5;
+--primary: #2563eb;
+--primary-hover: #1d4ed8;
 --success: #10b981;
 --danger: #ef4444;
 --warning: #f59e0b;
 --transfer: #8b5cf6;
---bg: #09090b;
---card: rgba(24, 24, 27, 0.7);
---card-glass: rgba(24, 24, 27, 0.88);
---border: rgba(139, 92, 246, 0.3);
---border-glow: rgba(99, 102, 241, 0.7);
---text: #fafafa;
---muted: #a1a1aa;
---input-bg: rgba(9, 9, 11, 0.8);
---shadow-sm: 0 1px 3px rgba(0,0,0,0.5);
---shadow-md: 0 8px 32px 0 rgba(0, 0, 0, 0.7);
---shadow-lg: 0 16px 48px rgba(0,0,0,0.9);
---glow: 0 0 20px rgba(99, 102, 241, 0.5);
---glow-strong: 0 0 30px rgba(139, 92, 246, 0.75);
+--bg: #030712;
+--card: #0f172a;
+--card-glass: rgba(15, 23, 42, 0.95);
+--border: #1e293b;
+--text: #f8fafc;
+--muted: #94a3b8;
+--input-bg: #020617;
+--shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+--shadow-md: 0 4px 10px -2px rgba(0,0,0,0.4);
+--shadow-lg: 0 12px 24px -6px rgba(0,0,0,0.6);
 }
 
 [data-theme="light"] {
---primary: #4f46e5;
---primary-hover: #4338ca;
---success: #059669;
---danger: #dc2626;
---warning: #d97706;
---transfer: #7c3aed;
---bg: #f8fafc;
---card: rgba(255, 255, 255, 0.85);
+--primary: #2563eb;
+--primary-hover: #1d4ed8;
+--success: #10b981;
+--danger: #ef4444;
+--warning: #f59e0b;
+--transfer: #8b5cf6;
+--bg: #f1f5f9;
+--card: #ffffff;
 --card-glass: rgba(255, 255, 255, 0.95);
---border: rgba(99, 102, 241, 0.25);
---border-glow: rgba(99, 102, 241, 0.6);
+--border: #cbd5e1;
 --text: #0f172a;
 --muted: #64748b;
---input-bg: rgba(241, 245, 249, 0.9);
---shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
---shadow-md: 0 8px 24px 0 rgba(0, 0, 0, 0.08);
---shadow-lg: 0 12px 32px rgba(0,0,0,0.12);
---glow: 0 0 15px rgba(99, 102, 241, 0.3);
---glow-strong: 0 0 25px rgba(99, 102, 241, 0.5);
+--input-bg: #f8fafc;
+--shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
+--shadow-md: 0 4px 8px -2px rgba(0,0,0,0.06);
+--shadow-lg: 0 10px 20px -4px rgba(0,0,0,0.1);
 }
 
 ::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
@@ -89,9 +83,7 @@ color: var(--text);
 }
 
 body { 
-background: radial-gradient(circle at 50% -20%, #31105c 0%, #170d38 40%, var(--bg) 80%);
-background-attachment: fixed;
-color: var(--text); 
+background: var(--bg); color: var(--text); 
 padding: 6px; padding-bottom: 80px; font-size: 13px; 
 min-height: 100vh; min-height: 100dvh;
 overflow-y: auto !important; 
@@ -124,12 +116,10 @@ grid-template-columns: 1fr !important;
 grid-template-rows: auto 1fr;
 gap: 12px;
 background: var(--card);
-backdrop-filter: blur(35px);
--webkit-backdrop-filter: blur(35px);
-border: 1.5px solid var(--border-glow);
-border-radius: 22px;
-padding: 14px;
-box-shadow: var(--shadow-lg), var(--glow-strong);
+border: 1.5px solid var(--border);
+border-radius: 20px;
+padding: 12px;
+box-shadow: var(--shadow-lg);
 overflow: visible !important;
 }
 .app-layout.logged-in-layout {
@@ -137,21 +127,19 @@ grid-template-columns: 240px 1fr !important;
 }
 .top-header {
 grid-column: 1 / -1;
-border-radius: 14px !important;
+border-radius: 12px !important;
 }
 .desktop-sidebar {
 display: none;
 flex-direction: column;
 gap: 6px;
-background: var(--card);
-backdrop-filter: blur(25px);
--webkit-backdrop-filter: blur(25px);
-border: 1px solid var(--border);
+background: var(--bg);
+border: 1.5px solid var(--border);
 border-radius: 14px;
 padding: 10px;
 height: fit-content;
 position: sticky;
-top: 14px;
+top: 12px;
 }
 .app-layout.logged-in-layout .desktop-sidebar {
 display: flex !important;
@@ -166,22 +154,13 @@ padding: 10px 12px;
 font-size: 12px;
 border-radius: 10px;
 color: var(--text);
-transition: all 0.2s;
-border: 1px solid transparent;
-}
-.desktop-sidebar .nav-item:hover {
-background: rgba(99, 102, 241, 0.2);
-color: var(--primary);
-border-color: var(--border);
 }
 .desktop-sidebar .nav-item .nav-icon {
 font-size: 16px;
 }
 .desktop-sidebar .nav-item.active {
-background: linear-gradient(135deg, var(--primary), var(--transfer));
+background: var(--primary);
 color: #fff;
-box-shadow: var(--glow-strong);
-border-color: var(--border-glow);
 }
 .mobile-bottom-nav {
 display: none !important;
@@ -224,105 +203,95 @@ from { opacity: 0; transform: translateY(4px) scale(0.99); }
 to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* 🌟 İşııl Işıl Mor-Mavi Neon Cyber Glass Efekti */
 .top-header { 
 display: flex; justify-content: space-between; align-items: center; 
-padding: 8px 12px; background: var(--card-glass); 
-backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
-border: 1px solid var(--border-glow); 
-border-radius: 14px; box-shadow: var(--shadow-md), var(--glow); flex-shrink: 0;
+padding: 7px 10px; background: var(--card); border: 1.5px solid var(--border); 
+border-radius: 12px; box-shadow: var(--shadow-sm); flex-shrink: 0;
 }
 .logo-area { display: flex; align-items: center; gap: 6px; }
-.logo { font-size: 13px; font-weight: 800; color: #a5b4fc; display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.5px; text-shadow: 0 0 15px rgba(99,102,241,0.8); }
+.logo { font-size: 13px; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
 
 #authArea {
 display: flex;
 align-items: center;
 gap: 6px;
-background: var(--input-bg);
+background: var(--bg);
 padding: 4px 8px;
 border-radius: 8px;
 border: 1px solid var(--border);
-box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
 }
 
 .mobile-bottom-nav {
 position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-glass);
-backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
-border-top: 1px solid var(--border-glow); display: flex; justify-content: space-around;
-padding: 6px 4px; z-index: 998; box-shadow: var(--shadow-lg), var(--glow); width: 100%;
+backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+border-top: 1.5px solid var(--border); display: flex; justify-content: space-around;
+padding: 5px 4px; z-index: 998; box-shadow: var(--shadow-lg); width: 100%;
 }
 .nav-item {
 background: transparent; border: none; display: flex; flex-direction: column;
 align-items: center; gap: 2px; font-size: 10px; font-weight: 700; color: var(--muted);
-cursor: pointer; flex: 1; padding: 4px 2px; border-radius: 8px; transition: all 0.2s ease;
+cursor: pointer; flex: 1; padding: 4px 2px; border-radius: 8px; transition: all 0.15s ease;
 }
 .nav-item:active { transform: scale(0.92); }
-.nav-item.active { color: #a5b4fc; background: rgba(99, 102, 241, 0.25); box-shadow: var(--glow); }
+.nav-item.active { color: var(--primary); background: rgba(37, 99, 235, 0.08); }
 .nav-icon { font-size: 18px; transition: transform 0.15s; }
 .nav-item.active .nav-icon { transform: translateY(-1px); }
 
 .btn { 
-background: linear-gradient(135deg, var(--primary), var(--transfer)); color: #fff; font-size: 11px; font-weight: 700; 
-padding: 6px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.25); cursor: pointer; 
+background: var(--primary); color: #fff; font-size: 11px; font-weight: 700; 
+padding: 6px 12px; border-radius: 10px; border: none; cursor: pointer; 
 display: inline-flex; align-items: center; justify-content: center; gap: 5px; 
-transition: all 0.2s ease; box-shadow: 0 4px 20px rgba(99,102,241,0.5);
+transition: all 0.15s ease; box-shadow: 0 2px 6px rgba(37,99,235,0.25);
 white-space: nowrap; min-height: 34px;
 }
-.btn:hover { background: linear-gradient(135deg, var(--primary-hover), #7c3aed); transform: translateY(-1px); box-shadow: 0 6px 25px rgba(99,102,241,0.8), var(--glow-strong); }
+.btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
 .btn:active { transform: scale(0.95); opacity: 0.9; }
-.btn-danger { background: linear-gradient(135deg, var(--danger), #b91c1c); box-shadow: 0 4px 20px rgba(239,68,68,0.5); }
-.btn-danger:hover { background: linear-gradient(135deg, #dc2626, #991b1b); box-shadow: 0 6px 25px rgba(239,68,68,0.8); }
-.btn-success { background: linear-gradient(135deg, var(--success), #047857); box-shadow: 0 4px 20px rgba(16,185,129,0.5); }
-.btn-success:hover { background: linear-gradient(135deg, #059669, #065f46); box-shadow: 0 6px 25px rgba(16,185,129,0.8); }
-.btn-outline { background: var(--card); border: 1px solid var(--border); color: var(--muted); box-shadow: none; }
-.btn-outline:hover { background: var(--bg); color: var(--text); border-color: var(--border-glow); box-shadow: var(--glow); }
+.btn-danger { background: var(--danger); box-shadow: 0 2px 6px rgba(239,68,68,0.25); }
+.btn-danger:hover { background: #dc2626; }
+.btn-success { background: var(--success); box-shadow: 0 2px 6px rgba(16,185,129,0.25); }
+.btn-success:hover { background: #059669; }
+.btn-outline { background: var(--card); border: 1.5px solid var(--border); color: var(--muted); box-shadow: none; }
+.btn-outline:hover { background: var(--bg); color: var(--text); border-color: var(--muted); }
 .btn-sm { font-size: 10px; padding: 4px 8px; min-height: 28px; border-radius: 7px; }
 
 .card { 
-background: var(--card); 
-backdrop-filter: blur(25px); 
--webkit-backdrop-filter: blur(25px);
-border: 1px solid var(--border); 
-border-radius: 18px; 
-padding: 12px; 
-box-shadow: var(--shadow-md); 
-transition: all 0.3s ease; 
+background: var(--card); border: 1.5px solid var(--border); border-radius: 14px; 
+padding: 10px 12px; box-shadow: var(--shadow-md); 
+transition: background 0.3s, border-color 0.3s; 
 }
-.card:hover { border-color: var(--border-glow); box-shadow: var(--shadow-lg), var(--glow); }
-.card-title { font-size: 12px; font-weight: 800; color: var(--text); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; letter-spacing: 0.3px; gap: 6px; }
+.card-title { font-size: 12px; font-weight: 800; color: var(--text); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; letter-spacing: 0.3px; gap: 6px; }
 
-/* Şık Işıltılı Bildirim (Toast) Cam Efekti */
+/* Bildirim (Toast) Tasarımı */
 #toastNotice {
 position: fixed; 
 top: -70px; 
 left: 50%; 
 transform: translateX(-50%);
 background: var(--card-glass); 
-backdrop-filter: blur(30px); 
--webkit-backdrop-filter: blur(30px);
+backdrop-filter: blur(12px); 
+-webkit-backdrop-filter: blur(12px);
 color: var(--text);
-box-shadow: 0 20px 45px -5px rgba(0, 0, 0, 0.85), var(--glow-strong); 
-padding: 10px 18px; 
-border-radius: 16px;
+box-shadow: var(--shadow-lg); 
+padding: 10px 16px; 
+border-radius: 12px;
 display: flex; 
 align-items: center; 
-gap: 10px; 
+gap: 8px; 
 z-index: 10000;
-transition: top 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-max-width: 92%; 
+transition: top 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.25);
+max-width: 90%; 
 width: max-content; 
 pointer-events: none; 
-border: 1px solid var(--border-glow);
+border: 1.5px solid var(--border);
 }
-#toastNotice.active { top: 16px; }
+#toastNotice.active { top: 10px; }
 .toast-body { display: flex; align-items: center; gap: 8px; max-width: 100%; }
 .toast-title { font-size: 12px; font-weight: 800; color: var(--primary); flex-shrink: 0; }
 .toast-msg { font-size: 11px; color: var(--muted); word-break: break-word; }
 
-#loginBoxCard { max-width: 100%; margin: 15px auto; padding: 18px; display: block; border-radius: 20px; border: 1px solid var(--border-glow); box-shadow: var(--shadow-lg), var(--glow-strong); }
-#registerBoxCard { max-width: 100%; margin: 15px auto; padding: 18px; display: none; border-radius: 20px; border: 1px solid var(--border-glow); box-shadow: var(--shadow-lg), var(--glow-strong); }
-#forgotBoxCard { max-width: 100%; margin: 15px auto; padding: 18px; display: none; border-radius: 20px; border: 1px solid var(--border-glow); box-shadow: var(--shadow-lg), var(--glow-strong); }
+#loginBoxCard { max-width: 100%; margin: 15px auto; padding: 16px; display: block; border-radius: 14px; }
+#registerBoxCard { max-width: 100%; margin: 15px auto; padding: 16px; display: none; border-radius: 14px; }
+#forgotBoxCard { max-width: 100%; margin: 15px auto; padding: 16px; display: none; border-radius: 14px; }
 
 .protected-section { display: none; flex-direction: column; gap: 6px; width: 100%; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -330,65 +299,64 @@ border: 1px solid var(--border-glow);
 .field.full { grid-column: span 2; margin-bottom: 6px; }
 label { display: block; font-size: 10px; font-weight: 700; color: var(--muted); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.4px; }
 select, input, textarea { 
-width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; 
+width: 100%; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 10px; 
 font-size: 12px; outline: none; background: var(--input-bg); font-weight: 600; color: var(--text); 
-transition: all 0.2s; min-height: 36px;
+transition: all 0.15s; min-height: 36px;
 }
 select:disabled { background: var(--border); color: var(--muted); opacity: 0.7; }
-select:focus, input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.35), var(--glow); }
+select:focus, input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
 
 #productSuggestionsList {
-position: absolute; top: 100%; left: 0; right: 0; background: var(--card-glass);
-backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
-border: 1px solid var(--border-glow); border-radius: 10px; margin-top: 3px;
+position: absolute; top: 100%; left: 0; right: 0; background: var(--card);
+border: 1.5px solid var(--border); border-radius: 10px; margin-top: 3px;
 max-height: 150px; overflow-y: auto; z-index: 100; box-shadow: var(--shadow-md);
 display: none;
 }
 .suggestion-item {
 padding: 8px 10px; font-size: 12px; font-weight: 700; cursor: pointer;
-border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;
+border-bottom: 1.5px solid var(--border); display: flex; justify-content: space-between; align-items: center;
 }
 .suggestion-item:last-child { border-bottom: none; }
-.suggestion-item:active { background: rgba(99, 102, 241, 0.25); color: var(--primary); }
+.suggestion-item:active { background: rgba(37, 99, 235, 0.08); color: var(--primary); }
 
 .custom-date-display {
-background: var(--input-bg); border: 1px solid var(--border); border-radius: 10px;
+background: var(--input-bg); border: 1.5px solid var(--border); border-radius: 10px;
 padding: 8px 10px; font-size: 12px; font-weight: 600; color: var(--text);
 cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;
 min-height: 36px;
 }
-.custom-date-display:active { border-color: var(--primary); box-shadow: var(--glow); }
+.custom-date-display:active { border-color: var(--primary); }
 
 .search-box { margin-bottom: 6px; flex-shrink: 0; }
-.search-box input { height: 36px; font-size: 12px; background: var(--input-bg); border-radius: 10px; padding-left: 32px; border: 1px solid var(--border); }
+.search-box input { height: 36px; font-size: 12px; background: var(--input-bg); border-radius: 10px; padding-left: 32px; }
 
 .qty-wrapper { display: flex; align-items: center; gap: 5px; }
 .qty-wrapper input { text-align: center; font-size: 15px; font-weight: 800; height: 36px; }
-.qty-btn { width: 36px; height: 36px; background: var(--input-bg); color: var(--text); border: 1px solid var(--border); border-radius: 10px; font-size: 16px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.1s; }
+.qty-btn { width: 36px; height: 36px; background: var(--bg); color: var(--text); border: 1.5px solid var(--border); border-radius: 10px; font-size: 16px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.1s; }
 .qty-btn:active { transform: scale(0.90); background: var(--border); }
 
-.type-switcher { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 6px; background: var(--input-bg); padding: 3px; border-radius: 10px; border: 1px solid var(--border); flex-shrink: 0; }
+.type-switcher { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 6px; background: var(--bg); padding: 3px; border-radius: 10px; border: 1.5px solid var(--border); flex-shrink: 0; }
 .type-btn { height: 32px; border: none; background: transparent; border-radius: 7px; font-size: 11px; font-weight: 800; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-.type-btn.active-out { background: var(--danger); color: #fff; box-shadow: 0 2px 15px rgba(239,68,68,0.7); }
-.type-btn.active-in { background: var(--success); color: #fff; box-shadow: 0 2px 15px rgba(16,185,129,0.7); }
-.type-btn.active-trans { background: var(--transfer); color: #fff; box-shadow: 0 2px 15px rgba(139,92,246,0.7); }
+.type-btn.active-out { background: var(--danger); color: #fff; box-shadow: 0 2px 6px rgba(239,68,68,0.3); }
+.type-btn.active-in { background: var(--success); color: #fff; box-shadow: 0 2px 6px rgba(16,185,129,0.3); }
+.type-btn.active-trans { background: var(--transfer); color: #fff; box-shadow: 0 2px 6px rgba(139,92,246,0.3); }
 
 .depot-tabs { display: flex; gap: 6px; margin-bottom: 6px; overflow-x: auto; padding-bottom: 2px; flex-shrink: 0; }
-.tab-btn { height: 32px; flex: 1; min-width: 80px; border: 1px solid var(--border); background: var(--input-bg); border-radius: 8px; font-size: 11px; font-weight: 800; color: var(--muted); cursor: pointer; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; padding: 0 8px; transition: all 0.15s; }
-.tab-btn.active { background: var(--primary); color: #fff; border-color: var(--border-glow); box-shadow: var(--glow); }
+.tab-btn { height: 32px; flex: 1; min-width: 80px; border: 1.5px solid var(--border); background: var(--card); border-radius: 8px; font-size: 11px; font-weight: 800; color: var(--muted); cursor: pointer; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; padding: 0 8px; transition: all 0.15s; }
+.tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 2px 8px rgba(37,99,235,0.3); }
 
 /* STOKLAR SAYFASI */
 #page-stoklar { display: flex; flex-direction: column; gap: 6px; }
-#criticalAlertCard { flex-shrink: 0; max-height: 180px; display: flex; flex-direction: column; border-color: var(--danger); background: rgba(239,68,68,0.15); box-shadow: 0 0 25px rgba(239,68,68,0.35); }
+#criticalAlertCard { flex-shrink: 0; max-height: 180px; display: flex; flex-direction: column; border-color: var(--danger); background: rgba(239,68,68,0.04); }
 #criticalAlertList { font-size: 11px; display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; padding-right: 2px; }
 .stock-grid { display: flex; flex-direction: column; gap: 8px; }
 .stock-row { 
 display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; 
-border: 1px solid var(--border); border-radius: 14px; background: var(--input-bg); cursor: pointer; 
-box-shadow: var(--shadow-sm); transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); flex-shrink: 0;
+border: 1.5px solid var(--border); border-radius: 14px; background: var(--card); cursor: pointer; 
+box-shadow: var(--shadow-sm); transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1); flex-shrink: 0;
 }
-.stock-row:hover { border-color: var(--border-glow); transform: translateY(-1px); box-shadow: var(--shadow-md), var(--glow); background: var(--card); }
-.stock-row:active { transform: scale(0.98); }
+.stock-row:hover { border-color: var(--primary); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.stock-row:active { transform: scale(0.98); background: rgba(37, 99, 235, 0.04); }
 .stock-left { display: flex; flex-direction: column; gap: 3px; }
 .stock-group { font-size: 10px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; }
 .stock-name { font-size: 13px; font-weight: 700; color: var(--text); }
@@ -407,16 +375,16 @@ gap: 6px;
 }
 
 .badge { font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 12px; text-transform: uppercase; letter-spacing: 0.3px; display: inline-flex; align-items: center; gap: 3px; }
-.badge-ok { background: rgba(16, 185, 129, 0.25); color: var(--success); }
-.badge-warn { background: rgba(239, 68, 68, 0.3); color: var(--danger); box-shadow: 0 0 12px rgba(239,68,68,0.4); }
+.badge-ok { background: rgba(16, 185, 129, 0.12); color: var(--success); }
+.badge-warn { background: rgba(239, 68, 68, 0.12); color: var(--danger); }
 
 .sortable-item { cursor: grab; user-select: none; }
 .sortable-item:active { cursor: grabbing; }
 
-.modal { display: none; position: fixed; inset: 0; background: rgba(3,7,18,0.88); z-index: 999; align-items: center; justify-content: center; padding: 12px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+.modal { display: none; position: fixed; inset: 0; background: rgba(3,7,18,0.75); z-index: 999; align-items: center; justify-content: center; padding: 12px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 #customConfirmModal, #customPromptModal { z-index: 1050 !important; }
 
-.modal-box { background: var(--card-glass); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); color: var(--text); width: 100%; max-width: 380px; border-radius: 20px; padding: 16px; border: 1px solid var(--border-glow); max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg), var(--glow-strong); animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+.modal-box { background: var(--card); color: var(--text); width: 100%; max-width: 380px; border-radius: 16px; padding: 14px; border: 1.5px solid var(--border); max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
 @keyframes modalPop {
 from { opacity: 0; transform: scale(0.96); }
 to { opacity: 1; transform: scale(1); }
@@ -531,7 +499,7 @@ input[type=number] { -moz-appearance: textfield; }
 ⚠️ Kritik Uyarılar (<span id="restoreCriticalBadge">0</span>) Göster
 </button>
 
-<div class="card" id="criticalAlertCard" style="display:none; border-color:var(--danger); background: rgba(239,68,68,0.15); flex-shrink:0;">
+<div class="card" id="criticalAlertCard" style="display:none; border-color:var(--danger); background: rgba(239,68,68,0.04); flex-shrink:0;">
 <div class="card-title" style="color:var(--danger); margin-bottom:4px; cursor:pointer;" onclick="minimizeCriticalAlertCard()" title="Küçültmek İçin Tıklayın">
 <span id="criticalAlertTitle">⚠️ Kritik Stok Uyarıları</span>
 <div style="display:flex; gap:4px; align-items:center; flex-shrink:0;">
@@ -617,12 +585,12 @@ input[type=number] { -moz-appearance: textfield; }
 
 <button class="btn btn-outline" style="width:100%; height:36px; margin-top:4px; font-size:11px; border-color:var(--primary); color:var(--primary);" onclick="addToCart()">➕ Ürünü Sepete Ekle</button>
 
-<div style="margin-top:6px; padding-top:4px; border-top:1px solid var(--border);">
+<div style="margin-top:6px; padding-top:4px; border-top:1.5px solid var(--border);">
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
 <b style="font-size:11px; color:var(--text);">🛒 Eklenen Ürünler (Sepet)</b>
 <span id="cartCountBadge" style="font-size:10px; background:var(--primary); color:#fff; padding:2px 6px; border-radius:6px; font-weight:800;">0 Ürün</span>
 </div>
-<div id="cartListContainer" style="max-height: 110px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 5px; background: var(--input-bg); display: flex; flex-direction: column; gap: 4px;">
+<div id="cartListContainer" style="max-height: 110px; overflow-y: auto; border: 1.5px solid var(--border); border-radius: 8px; padding: 5px; background: var(--bg); display: flex; flex-direction: column; gap: 4px;">
 <div style="font-size:11px; color:var(--muted); text-align:center; padding:6px;">Sepetiniz henüz boş.</div>
 </div>
 </div>
@@ -661,9 +629,9 @@ input[type=number] { -moz-appearance: textfield; }
 
 <button class="btn btn-success" style="width:100%; height:36px; margin-bottom:6px; font-weight:800; font-size:11px;" onclick="filterReport(true)">🔍 Raporu Getir ve Listele</button>
 
-<div id="reportSummary" style="font-size:11px; font-weight:700; color:var(--primary); margin-bottom:5px; padding:5px 8px; background:var(--input-bg); border-radius:7px; border:1px solid var(--border);">Lütfen tarih seçip raporu getirin.</div>
+<div id="reportSummary" style="font-size:11px; font-weight:700; color:var(--primary); margin-bottom:5px; padding:5px 8px; background:var(--bg); border-radius:7px; border:1.5px solid var(--border);">Lütfen tarih seçip raporu getirin.</div>
 
-<div style="margin-top:4px; padding-top:4px; border-top:1px solid var(--border);">
+<div style="margin-top:4px; padding-top:4px; border-top:1.5px solid var(--border);">
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
 <b style="font-size:11px; color:var(--text);">🔥 Tüketilen Ürünler Özeti</b>
 <div style="display:flex; gap:4px;">
@@ -674,7 +642,7 @@ input[type=number] { -moz-appearance: textfield; }
 <div id="topConsumedList" style="font-size:11px; color:var(--muted); margin-top:3px; display:flex; flex-direction:column; gap:3px; max-height:130px; overflow-y:auto;">Rapor bekleniyor.</div>
 </div>
 
-<div style="margin-top:6px; padding-top:4px; border-top:1px solid var(--border);">
+<div style="margin-top:6px; padding-top:4px; border-top:1.5px solid var(--border);">
 <b style="font-size:11px; color:var(--text);">📋 İşlem Listesi</b>
 <div id="reportList" style="font-size:11px; color:var(--muted); max-height:150px; overflow-y:auto; padding:3px; margin-top:3px; display:flex; flex-direction:column; gap:3px;">
 Veri görüntülemek için raporu getirin.
@@ -738,7 +706,7 @@ Veri görüntülemek için raporu getirin.
 </div>
 </div>
 
-<div class="card admin-only-card" id="companyDangerZoneCard" style="display:none; border-color:var(--danger); background: rgba(239,68,68,0.15);">
+<div class="card admin-only-card" id="companyDangerZoneCard" style="display:none; border-color:var(--danger); background: rgba(239,68,68,0.04);">
 <div class="card-title" style="color:var(--danger); margin-bottom:4px;">
 <span>⚠️ Tehlikeli Bölge</span>
 </div>
@@ -800,13 +768,13 @@ Veri görüntülemek için raporu getirin.
 <button type="button" class="btn btn-outline btn-sm" style="flex:1; height:26px; font-size:10px;" onclick="toggleAllExportDepots(true)">Tümünü Seç</button>
 <button type="button" class="btn btn-outline btn-sm" style="flex:1; height:26px; font-size:10px;" onclick="toggleAllExportDepots(false)">Seçimleri Kaldır</button>
 </div>
-<div id="exportDepotsCheckboxList" style="display:flex; flex-direction:column; gap:5px; max-height: 150px; overflow-y: auto; margin-bottom: 10px; background:var(--input-bg); padding:6px; border-radius:8px; border:1px solid var(--border);"></div>
+<div id="exportDepotsCheckboxList" style="display:flex; flex-direction:column; gap:5px; max-height: 150px; overflow-y: auto; margin-bottom: 10px; background:var(--bg); padding:6px; border-radius:8px; border:1.5px solid var(--border);"></div>
 <button class="btn btn-success" style="width:100%; height:36px; font-size:11px;" onclick="executeMultiDepotExport()">Raporu İndir</button>
 </div>
 </div>
 
 <div class="modal" id="customCalendarModal">
-<div class="modal-box" style="max-width: 320px; padding: 10px; background: var(--card-glass); color: var(--text); border: 1px solid var(--border);">
+<div class="modal-box" style="max-width: 320px; padding: 10px; background: var(--card); color: var(--text); border: 1.5px solid var(--border);">
 <div class="modal-header" style="margin-bottom: 8px;">
 <b style="font-size: 12px; color: var(--text);" id="calModalTitle">Tarih Seçin</b>
 <button class="btn btn-danger btn-sm" style="height:26px; width:26px; padding:0; font-size:11px;" onclick="closeModal('customCalendarModal'); closeCustomCalendar();">×</button>
@@ -880,7 +848,7 @@ Veri görüntülemek için raporu getirin.
 <label style="margin:0;">Ürünler ve Depolar</label>
 <button type="button" class="btn btn-sm btn-outline" style="height:24px; font-size:9px;" onclick="addDynamicProductInputRow()">+ Ekle</button>
 </div>
-<div id="multiProductsDynamicRows" style="max-height: 170px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 5px; display: flex; flex-direction: column; gap: 4px; background: var(--input-bg);"></div>
+<div id="multiProductsDynamicRows" style="max-height: 170px; overflow-y: auto; border: 1.5px solid var(--border); border-radius: 8px; padding: 5px; display: flex; flex-direction: column; gap: 4px; background: var(--bg);"></div>
 </div>
 <button class="btn btn-success" style="width:100%; height:36px; margin-top:6px; font-size:11px;" onclick="saveMultipleNewProductsWithQuantities()">Tüm Ürünleri Ekle</button>
 </div>
@@ -893,7 +861,7 @@ Veri görüntülemek için raporu getirin.
 <button class="btn btn-danger btn-sm" style="height:26px; width:26px; padding:0; font-size:11px;" onclick="closeModal('categoryModal'); closeCategoryModal();">×</button>
 </div>
 <div style="font-size:11px; color:var(--muted); margin-bottom:8px; line-height:1.4;">Kategori adını güncelleyebilir veya ilgili kategorinin <b>hangi depolarda gizleneceğini</b> seçebilirsiniz:</div>
-<div id="categoryModalListContainer" style="display:flex; flex-direction:column; gap:8px; max-height: 320px; overflow-y: auto; margin-bottom: 10px; background:var(--input-bg); padding:6px; border-radius:8px; border:1px solid var(--border);"></div>
+<div id="categoryModalListContainer" style="display:flex; flex-direction:column; gap:8px; max-height: 320px; overflow-y: auto; margin-bottom: 10px; background:var(--bg); padding:6px; border-radius:8px; border:1.5px solid var(--border);"></div>
 <button class="btn btn-success" style="width:100%; height:36px; font-size:11px;" onclick="closeModal('categoryModal'); closeCategoryModal();">Tamam / Kapat</button>
 </div>
 </div>
@@ -923,7 +891,7 @@ Veri görüntülemek için raporu getirin.
 <div style="display:flex; gap:6px; margin-bottom:6px;">
 <button type="button" class="btn btn-outline btn-sm" style="flex:1; font-size:10px; height:28px;" onclick="reverseProductOrder()">🔄 Listeyi Tersine Çevir</button>
 </div>
-<div id="sortableProductList" style="max-height: 200px; overflow-y: auto; display:flex; flex-direction:column; gap:4px; border:1px solid var(--border); border-radius:8px; padding:5px; background:var(--input-bg);"></div>
+<div id="sortableProductList" style="max-height: 200px; overflow-y: auto; display:flex; flex-direction:column; gap:4px; border:1.5px solid var(--border); border-radius:8px; padding:5px; background:var(--bg);"></div>
 <div style="display:flex; gap:6px; margin-top:8px;">
 <button class="btn btn-success" style="flex:1; height:36px; font-size:11px;" onclick="saveReorderedProducts()">Sıralamayı Kaydet</button>
 <button class="btn btn-outline" style="flex:1; height:36px; font-size:11px;" onclick="closeModal('productOrderModal'); closeProductOrderModal();">Vazgeç</button>
@@ -942,7 +910,7 @@ Veri görüntülemek için raporu getirin.
 <span style="font-size:11px; color:var(--muted);">Firma kullanıcılarını ve yetkilerini yönetin:</span>
 <button class="btn btn-sm btn-success" style="height:28px; font-size:10px;" onclick="openModal('newUserModal'); openNewUserModal();">+ Yeni Kullanıcı</button>
 </div>
-<div id="userListContainer" style="display:flex; flex-direction:column; gap:6px; max-height: 300px; overflow-y: auto; background:var(--input-bg); padding:6px; border-radius:8px; border:1px solid var(--border);"></div>
+<div id="userListContainer" style="display:flex; flex-direction:column; gap:6px; max-height: 300px; overflow-y: auto; background:var(--bg); padding:6px; border-radius:8px; border:1.5px solid var(--border);"></div>
 <div style="display:flex; justify-content:flex-end; margin-top:10px;">
 <button class="btn btn-success" style="height:34px; padding:0 12px; font-size:11px;" onclick="closeModal('userManagementModal')">Tamam / Kapat</button>
 </div>
@@ -978,7 +946,7 @@ Veri görüntülemek için raporu getirin.
 <button type="button" class="btn btn-success btn-sm" style="height:34px; padding:0 8px; font-size:10px;" onclick="saveNewUsername()">Güncelle</button>
 </div>
 </div>
-<hr style="border:0; border-top:1px solid var(--border); margin:8px 0;">
+<hr style="border:0; border-top:1.5px solid var(--border); margin:8px 0;">
 <div class="field" style="margin-bottom:8px;">
 <label>E-posta Adresi Değiştir</label>
 <input type="email" id="settingsEmailInput" placeholder="Yeni E-posta" style="margin-bottom:3px;">
@@ -987,7 +955,7 @@ Veri görüntülemek için raporu getirin.
 <button type="button" class="btn btn-success btn-sm" style="height:34px; padding:0 8px; font-size:10px;" onclick="saveNewEmail()">Güncelle</button>
 </div>
 </div>
-<hr style="border:0; border-top:1px solid var(--border); margin:8px 0;">
+<hr style="border:0; border-top:1.5px solid var(--border); margin:8px 0;">
 <div class="field" style="margin-bottom:8px;">
 <label>Firma Adını Değiştir</label>
 <div style="display:flex; gap:6px;">
@@ -995,7 +963,7 @@ Veri görüntülemek için raporu getirin.
 <button type="button" class="btn btn-success btn-sm" style="height:34px; padding:0 8px; font-size:10px;" onclick="saveNewCompanyNameFromSettings()">Güncelle</button>
 </div>
 </div>
-<hr style="border:0; border-top:1px solid var(--border); margin:8px 0;">
+<hr style="border:0; border-top:1.5px solid var(--border); margin:8px 0;">
 <div class="field"><label>Eski Şifre</label><input type="password" id="oldPinInput" placeholder="Eski Şifre"></div>
 <div class="field"><label>Yeni Şifre</label><input type="password" id="newPinInput" placeholder="Yeni Şifre"></div>
 <div class="field"><label>Yeni Şifre (Tekrar)</label><input type="password" id="newPinConfirmInput" placeholder="Yeni Şifre (Tekrar)"></div>
@@ -1047,7 +1015,7 @@ Veri görüntülemek için raporu getirin.
 <input type="text" id="productMgmtSearch" oninput="renderProductManagementTable()" placeholder="Ürün veya kategori ara...">
 </div>
 <div style="font-size:10px; color:var(--muted); margin-bottom:6px;">Değişiklikler anında otomatik olarak kaydedilir.</div>
-<div id="productMgmtTableContainer" style="max-height: 320px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 6px; background: var(--input-bg); display: flex; flex-direction: column; gap: 6px;"></div>
+<div id="productMgmtTableContainer" style="max-height: 320px; overflow-y: auto; border: 1.5px solid var(--border); border-radius: 8px; padding: 6px; background: var(--bg); display: flex; flex-direction: column; gap: 6px;"></div>
 <div style="display:flex; justify-content:flex-end; margin-top:8px;">
 <button class="btn btn-success" style="height:34px; padding:0 12px; font-size:11px;" onclick="closeModal('editProductModal'); closeEditProductModal();">Tamam / Kapat</button>
 </div>
@@ -1081,8 +1049,8 @@ if (!t) return;
 let iconEl = document.getElementById('toastIcon');
 let titleEl = document.getElementById('toastTitle');
 titleEl.textContent = title;
-titleEl.style.color = isError ? '#f87171' : '#a5b4fc';
-iconEl.textContent = isError ? '❌' : '✨';
+titleEl.style.color = isError ? '#f87171' : '#38bdf8';
+iconEl.textContent = isError ? '❌' : '✅';
 document.getElementById('toastMsg').textContent = message;
 t.classList.add('active');
 clearTimeout(toastTimeout);
@@ -1461,7 +1429,7 @@ if (titleEl) titleEl.textContent = format === 'xlsx' ? '📥 Excel Raporu Depo S
 let listContainer = document.getElementById('exportDepotsCheckboxList');
 if (listContainer) {
 listContainer.innerHTML = depots.map(d => `
-<label style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; cursor:pointer; background:var(--card); padding:6px 8px; border-radius:6px; border:1px solid var(--border);">
+<label style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; cursor:pointer; background:var(--card); padding:6px 8px; border-radius:6px; border:1.5px solid var(--border);">
 <input type="checkbox" class="export-depot-chk" value="${d}" checked style="width:14px; height:14px; accent-color:var(--primary);">
 <span>📍 ${d}</span>
 </label>
@@ -1521,13 +1489,13 @@ let cell = { v: cellVal, t: typeof cellVal === 'number' ? 'n' : 's' };
 if (isHeader) {
 cell.s = {
 font: { bold: true, color: { rgb: "FFFFFF" } },
-fill: { fgColor: { rgb: "6366F1" } },
+fill: { fgColor: { rgb: "2563EB" } },
 alignment: { horizontal: "center", vertical: "center" }
 };
 } else if (isCategory) {
 cell.s = {
-font: { bold: true, color: { rgb: "4F46E5" } },
-fill: { fgColor: { rgb: "EEF2FF" } },
+font: { bold: true, color: { rgb: "1E3A8A" } },
+fill: { fgColor: { rgb: "E0E7FF" } },
 alignment: { horizontal: "left", vertical: "center" }
 };
 } else {
@@ -1596,14 +1564,14 @@ startY: 20,
 head: [headRow],
 body: tableData,
 theme: 'grid',
-headStyles: { fillColor: [99, 102, 241], fontSize: 8, cellPadding: 2, fontStyle: 'bold' },
+headStyles: { fillColor: [37, 99, 235], fontSize: 8, cellPadding: 2, fontStyle: 'bold' },
 styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
 didParseCell: function (data) {
 let rowVal = data.row.raw[0];
 if (rowVal && String(rowVal).startsWith('---')) {
 data.cell.colSpan = headRow.length;
 data.cell.styles.fillColor = [224, 231, 255];
-data.cell.styles.textColor = [79, 70, 229];
+data.cell.styles.textColor = [30, 58, 138];
 data.cell.styles.fontStyle = 'bold';
 data.cell.styles.halign = 'left';
 }
@@ -1743,12 +1711,12 @@ cell.textContent = day;
 cell.style.cssText = "padding: 6px 0; font-size: 11px; font-weight: 700; border-radius: 6px; cursor: pointer; transition: background 0.1s, color 0.1s;";
 let isFuture = dateFormatted > todayStr;
 if (isFuture) { cell.style.color = "var(--muted)"; cell.style.cursor = "not-allowed"; cell.style.opacity = "0.3"; }
-else if (dateFormatted === targetInputVal) { cell.style.background = "var(--primary)"; cell.style.color = "#fff"; cell.style.boxShadow = "var(--glow)"; }
-else if (dateFormatted === todayStr) { cell.style.border = "1px solid var(--primary)"; cell.style.color = "var(--primary)"; cell.style.background = "var(--input-bg)"; }
-else { cell.style.background = "var(--input-bg)"; cell.style.color = "var(--text)"; }
+else if (dateFormatted === targetInputVal) { cell.style.background = "var(--primary)"; cell.style.color = "#fff"; }
+else if (dateFormatted === todayStr) { cell.style.border = "1.5px solid var(--primary)"; cell.style.color = "var(--primary)"; cell.style.background = "var(--bg)"; }
+else { cell.style.background = "var(--bg)"; cell.style.color = "var(--text)"; }
 if (!isFuture) {
 cell.onmouseover = () => { if (dateFormatted !== targetInputVal) cell.style.background = "var(--border)"; };
-cell.onmouseout = () => { if (dateFormatted !== targetInputVal) cell.style.background = 'var(--input-bg)'; };
+cell.onmouseout = () => { if (dateFormatted !== targetInputVal) cell.style.background = 'var(--bg)'; };
 cell.onclick = () => selectCustomDate(dateFormatted);
 }
 grid.appendChild(cell);
@@ -2000,7 +1968,7 @@ let html = '';
 Object.keys(companiesMap).forEach(compName => {
 if (compName === 'GENEL') return;
 let isCurrent = (currentCompany === compName);
-html += `<div style="background:${isCurrent ? 'rgba(99,102,241,0.25)' : 'var(--input-bg)'}; padding:6px 10px; border-radius:8px; border:1px solid ${isCurrent ? 'var(--primary)' : 'var(--border)'}; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="switchToCompany('${compName}')"><div><b style="font-size:11px; color:var(--primary);">🏢 ${compName}</b> ${isCurrent ? '<span style="font-size:9px; background:var(--primary); color:#fff; padding:2px 5px; border-radius:4px; margin-left:4px;">AKTİF</span>' : ''}</div><button class="btn btn-outline btn-sm" style="height:24px; font-size:10px;">Git</button></div>`;
+html += `<div style="background:${isCurrent ? 'rgba(37,99,235,0.1)' : 'var(--bg)'}; padding:6px 10px; border-radius:8px; border:1.5px solid ${isCurrent ? 'var(--primary)' : 'var(--border)'}; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="switchToCompany('${compName}')"><div><b style="font-size:11px; color:var(--primary);">🏢 ${compName}</b> ${isCurrent ? '<span style="font-size:9px; background:var(--primary); color:#fff; padding:2px 5px; border-radius:4px; margin-left:4px;">AKTİF</span>' : ''}</div><button class="btn btn-outline btn-sm" style="height:24px; font-size:10px;">Git</button></div>`;
 });
 container.innerHTML = html || '<div style="font-size:11px; color:var(--muted); text-align:center;">Firma yok.</div>';
 }
@@ -2104,13 +2072,13 @@ return `
 let collapseId = 'cat_depots_' + cat.replace(/[^a-zA-Z0-9]/g, '_');
 
 return `
-<div style="background:var(--card); padding:8px; border-radius:8px; border:1px solid var(--border); display:flex; flex-direction:column; gap:6px;">
+<div style="background:var(--card); padding:8px; border-radius:8px; border:1.5px solid var(--border); display:flex; flex-direction:column; gap:6px;">
 <div style="display:flex; align-items:center; gap:6px;">
-<input type="text" value="${cat}" style="flex:1; height:32px; font-size:11px; padding:2px 6px; font-weight:bold; color:var(--text); background:var(--input-bg); border:1px solid var(--border); border-radius:6px;" onchange="renameCategory('${cat}', this.value)">
+<input type="text" value="${cat}" style="flex:1; height:32px; font-size:11px; padding:2px 6px; font-weight:bold; color:var(--text); background:var(--input-bg); border:1.5px solid var(--border); border-radius:6px;" onchange="renameCategory('${cat}', this.value)">
 <button type="button" class="btn btn-outline btn-sm" style="height:32px; font-size:10px; padding:0 8px; white-space:nowrap;" onclick="toggleCategoryDepotsPanel('${collapseId}')">🏢 Depolar (${hiddenCount}/${depots.length})</button>
 <button type="button" class="btn btn-danger btn-sm" style="height:32px; width:32px; padding:0; font-size:10px;" onclick="showCustomConfirm('${cat} kategorisi ve içindeki ürünler tamamen silinsin mi?', () => deleteEntireCategory('${cat}'))" title="Kategoriyi Sil">🗑️</button>
 </div>
-<div id="${collapseId}" style="display:none; flex-direction:column; gap:4px; background:var(--input-bg); padding:6px; border-radius:6px; border:1px solid var(--border); max-height:120px; overflow-y:auto;">
+<div id="${collapseId}" style="display:none; flex-direction:column; gap:4px; background:var(--bg); padding:6px; border-radius:6px; border:1.5px solid var(--border); max-height:120px; overflow-y:auto;">
 <div style="font-size:9px; font-weight:800; color:var(--muted); margin-bottom:2px;">Bu Kategorinin Gizleneceği Depolar:</div>
 <div style="display:flex; flex-wrap:wrap; gap:4px;">
 ${depotsCheckboxes}
@@ -2216,7 +2184,7 @@ let isActive = p.active !== false;
 let groupOptions = existingGroups.map(g => `<option value="${g}" ${p.group === g ? 'selected' : ''}>${g}</option>`).join('');
 
 return `
-<div style="background:var(--card); padding:8px; border-radius:10px; border:1px solid var(--border); display:flex; flex-direction:column; gap:6px;" data-id="${p.id}">
+<div style="background:var(--card); padding:8px; border-radius:10px; border:1.5px solid var(--border); display:flex; flex-direction:column; gap:6px;" data-id="${p.id}">
 <div style="display:flex; gap:5px; align-items:center; flex-wrap:wrap;">
 <select class="mgmt-group" style="flex:1; min-width:85px; height:34px; font-size:11px; padding:0 4px;" onchange="checkMgmtGroupChange(this); autoSaveProduct('${p.id}')">
 ${groupOptions}
@@ -2229,7 +2197,7 @@ ${groupOptions}
 ${currentUser.role === 'admin' ? `<button type="button" class="btn btn-danger btn-sm" style="height:34px; font-size:11px; padding:0 8px;" onclick="showCustomConfirm('${p.name} silinsin mi?', () => deleteMgmtProduct('${p.id}'))" title="Sil">🗑️</button>` : ''}
 </div>
 </div>
-<div style="display:flex; flex-direction:column; gap:4px; background:var(--input-bg); padding:6px; border-radius:6px; border:1px solid var(--border);">
+<div style="display:flex; flex-direction:column; gap:4px; background:var(--bg); padding:6px; border-radius:6px; border:1.5px solid var(--border);">
 ${depots.map(d => {
 let critVal = p.criticals && p.criticals[d] !== undefined ? p.criticals[d] : (p.critical !== undefined ? p.critical : 0);
 let openVal = p.openings && p.openings[d] !== undefined ? p.openings[d] : 0;
@@ -2362,7 +2330,7 @@ let container = document.getElementById('depotInputsContainer');
 if (!container) return;
 
 container.innerHTML = depots.map(d => `
-<div class="depot-mgmt-block" style="background:var(--input-bg); padding:8px 10px; border-radius:8px; border:1px solid var(--border); display:flex; gap:5px; align-items:center;">
+<div class="depot-mgmt-block" style="background:var(--bg); padding:8px 10px; border-radius:8px; border:1.5px solid var(--border); display:flex; gap:5px; align-items:center;">
 <input type="text" class="depot-name-input" value="${d}" placeholder="Depo Adı" style="flex:1; height:34px; font-size:11px; font-weight:bold;">
 <button type="button" class="btn btn-danger btn-sm" style="height:34px; padding:0 8px;" onclick="confirmRemoveDepot(this)">🗑️ Sil</button>
 </div>
@@ -2377,7 +2345,7 @@ let container = document.getElementById('depotInputsContainer');
 if (!container) return;
 let div = document.createElement('div');
 div.className = "depot-mgmt-block";
-div.style.cssText = "background:var(--input-bg); padding:8px 10px; border-radius:8px; border:1px solid var(--border); display:flex; gap:5px; align-items:center;";
+div.style.cssText = "background:var(--bg); padding:8px 10px; border-radius:8px; border:1.5px solid var(--border); display:flex; gap:5px; align-items:center;";
 div.innerHTML = `
 <input type="text" class="depot-name-input" value="" placeholder="Yeni Depo Adı" style="flex:1; height:34px; font-size:11px; font-weight:bold;">
 <button type="button" class="btn btn-danger btn-sm" style="height:34px; padding:0 8px;" onclick="confirmRemoveDepot(this)">🗑️ Sil</button>
@@ -2439,7 +2407,7 @@ function renderProductOrderList() {
 let container = document.getElementById('sortableProductList');
 if (!container) return;
 container.innerHTML = tempReorderProducts.length === 0 ? '<div style="text-align:center; color:var(--muted);">Ürün yok.</div>' : tempReorderProducts.map((p, idx) => `
-<div class="sortable-item" draggable="true" ondragstart="draggedIndex=${idx}" ondragover="event.preventDefault()" ondrop="let m=tempReorderProducts.splice(draggedIndex,1)[0]; tempReorderProducts.splice(${idx},0,m); renderProductOrderList();" style="display:flex; justify-content:space-between; align-items:center; background:var(--input-bg); padding:6px 8px; border-radius:7px; border:1px solid var(--border);">
+<div class="sortable-item" draggable="true" ondragstart="draggedIndex=${idx}" ondragover="event.preventDefault()" ondrop="let m=tempReorderProducts.splice(draggedIndex,1)[0]; tempReorderProducts.splice(${idx},0,m); renderProductOrderList();" style="display:flex; justify-content:space-between; align-items:center; background:var(--card); padding:6px 8px; border-radius:7px; border:1.5px solid var(--border);">
 <div><b>#${idx+1}</b> [${p.group}] ${p.name}</div>
 <div style="display:flex; gap:4px;"><button type="button" class="btn btn-success btn-sm" style="width:24px; height:24px;" onclick="moveProductOrder(${idx}, -1)">▲</button><button type="button" class="btn btn-danger btn-sm" style="width:24px; height:24px;" onclick="moveProductOrder(${idx}, 1)">▼</button></div>
 </div>
@@ -2621,7 +2589,7 @@ let badge = document.getElementById('cartCountBadge');
 if (badge) badge.textContent = `${currentCart.length} Ürün`;
 if (!container) return;
 container.innerHTML = currentCart.length === 0 ? '<div style="font-size:11px; color:var(--muted); text-align:center; padding:6px;">Sepet boş.</div>' : currentCart.map(item => `
-<div style="display:flex; justify-content:space-between; align-items:center; background:var(--card); padding:5px 7px; border-radius:6px; border:1px solid var(--border);">
+<div style="display:flex; justify-content:space-between; align-items:center; background:var(--card); padding:5px 7px; border-radius:6px; border:1.5px solid var(--border);">
 <div><span style="font-size:9px; font-weight:800; color:var(--primary);">${item.group} • ${item.depot}</span><div style="font-size:11px; font-weight:700;">${item.prodName}</div></div>
 <div style="display:flex; align-items:center; gap:3px;">
 <button type="button" class="btn btn-outline btn-sm" style="width:20px; height:20px; padding:0; font-size:10px;" onclick="changeCartQty('${item.id}', -1)">-</button>
@@ -2886,7 +2854,7 @@ w.style.display = 'block';
 setTimeout(() => {
 let newCatInput = document.getElementById('multiNewGroupInput');
 if (newCatInput) { newCatInput.focus(); newCatInput.select(); }
-}, 80);
+}, 100);
 } else {
 w.style.display = 'none';
 let newCatInput = document.getElementById('multiNewGroupInput');
@@ -2894,7 +2862,7 @@ if (newCatInput) newCatInput.value = '';
 setTimeout(() => {
 let firstProdInput = document.querySelector('.dyn-prod-name');
 if (firstProdInput) { firstProdInput.focus(); firstProdInput.select(); }
-}, 80);
+}, 100);
 }
 }
 }
@@ -2905,8 +2873,8 @@ if (!container) return;
 let rowId = 'dyn_row_' + Date.now();
 let div = document.createElement('div');
 div.id = rowId;
-let depotsHtml = depots.map(d => `<div style="background:var(--input-bg); padding:4px; border-radius:6px; border:1px solid var(--border);"><div style="font-size:8px; font-weight:800; color:var(--primary);">📍 ${d}</div><label style="font-size:7px;">Açılış</label><input type="number" class="dyn-prod-opening" data-depot="${d}" value="0" style="height:25px; text-align:center; font-size:10px;"><label style="font-size:7px; color:var(--danger);">Kritik</label><input type="number" class="dyn-prod-critical" data-depot="${d}" value="0" style="height:25px; text-align:center; font-size:10px;"></div>`).join('');
-div.style.cssText = "background:var(--card); padding:6px; border-radius:6px; border:1px solid var(--border); display:flex; flex-direction:column; gap:4px;";
+let depotsHtml = depots.map(d => `<div style="background:var(--bg); padding:4px; border-radius:6px; border:1.5px solid var(--border);"><div style="font-size:8px; font-weight:800; color:var(--primary);">📍 ${d}</div><label style="font-size:7px;">Açılış</label><input type="number" class="dyn-prod-opening" data-depot="${d}" value="0" style="height:25px; text-align:center; font-size:10px;"><label style="font-size:7px; color:var(--danger);">Kritik</label><input type="number" class="dyn-prod-critical" data-depot="${d}" value="0" style="height:25px; text-align:center; font-size:10px;"></div>`).join('');
+div.style.cssText = "background:var(--card); padding:6px; border-radius:6px; border:1.5px solid var(--border); display:flex; flex-direction:column; gap:4px;";
 div.innerHTML = `
 <div style="display:flex; gap:5px; align-items:center;"><input type="text" class="dyn-prod-name" placeholder="Ürün adı..." style="flex:1; height:30px; font-size:11px;"><button type="button" class="btn btn-danger btn-sm" style="height:30px; padding:0 6px; font-size:10px;" onclick="document.getElementById('${rowId}').remove()">🗑️</button></div>
 <div style="display:grid; grid-template-columns: repeat(${depots.length}, 1fr); gap:4px;">${depotsHtml}</div>
@@ -2948,10 +2916,10 @@ if (!currentUser || currentUser.role !== 'admin') return;
 let container = document.getElementById('userListContainer');
 if (!container) return;
 container.innerHTML = systemUsers.filter(u => u.company === currentCompany).map(u => `
-<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border:1px solid var(--border); border-radius:7px; background:var(--card); gap:5px; flex-wrap:wrap;">
-<div style="flex:1; min-width:70px;"><b style="font-size:11px; color:var(--text);">${u.username}</b> <span style="font-size:8px; color:var(--primary); display:block; font-weight:800;">${u.role.toUpperCase()}</span></div>
+<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border:1.5px solid var(--border); border-radius:7px; background:var(--bg); gap:5px; flex-wrap:wrap;">
+<div style="flex:1; min-width:70px;"><b style="font-size:11px;">${u.username}</b> <span style="font-size:8px; color:var(--primary); display:block; font-weight:800;">${u.role.toUpperCase()}</span></div>
 <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
-<select style="width:95px; height:26px; font-size:10px; padding:0 3px;" onchange="changeUserRole('${u.username}', this.value)">
+<select style="width:90px; height:26px; font-size:10px; padding:0 3px;" onchange="changeUserRole('${u.username}', this.value)">
 <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
 <option value="düzenleyen" ${u.role==='düzenleyen'?'selected':''}>Düzenleyen</option>
 <option value="görüntüleyen" ${u.role==='görüntüleyen'?'selected':''}>Görüntüleyen</option>
@@ -3046,7 +3014,7 @@ if (restoreBtn) restoreBtn.style.display = 'block';
 } else {
 if (alertCard) alertCard.style.display = 'block';
 if (restoreBtn) restoreBtn.style.display = 'none';
-if (alertList) alertList.innerHTML = criticalItems.map(c => `<div style="display:flex; justify-content:space-between; background:var(--card); padding:5px 8px; border-radius:6px; border:1px solid var(--border);"><span><b>${c.name}</b></span><span style="color:var(--danger); font-weight:800;">Kalan: ${c.qty}</span></div>`).join('');
+if (alertList) alertList.innerHTML = criticalItems.map(c => `<div style="display:flex; justify-content:space-between; background:var(--card); padding:5px 8px; border-radius:6px; border:1.5px solid var(--border);"><span><b>${c.name}</b></span><span style="color:var(--danger); font-weight:800;">Kalan: ${c.qty}</span></div>`).join('');
 }
 } else {
 if (alertCard) alertCard.style.display = 'none';
@@ -3110,14 +3078,14 @@ if (repSum) repSum.innerHTML = `📊 Giriş: <span style="color:var(--success)">
 let sortedConsumed = Object.entries(consumptionMap).sort((a,b) => b[1] - a[1]);
 let topCons = document.getElementById('topConsumedList');
 if (topCons) {
-topCons.innerHTML = sortedConsumed.length > 0 ? sortedConsumed.map(([name, qty], i) => `<div style="display:flex; justify-content:space-between; background:var(--input-bg); padding:4px 6px; border-radius:5px;"><span>${i+1}. <b>${name}</b></span><span style="color:var(--danger); font-weight:800;">${qty} Çıkış</span></div>`).join('') : '<span style="color:var(--muted);">Tüketilen ürün yok.</span>';
+topCons.innerHTML = sortedConsumed.length > 0 ? sortedConsumed.map(([name, qty], i) => `<div style="display:flex; justify-content:space-between; background:var(--bg); padding:4px 6px; border-radius:5px;"><span>${i+1}. <b>${name}</b></span><span style="color:var(--danger); font-weight:800;">${qty} Çıkış</span></div>`).join('') : '<span style="color:var(--muted);">Tüketilen ürün yok.</span>';
 }
 
 let isAdmin = currentUser && currentUser.role === 'admin';
 let repList = document.getElementById('reportList');
 if (repList) {
 repList.innerHTML = filteredWithIndex.length === 0 ? '<div style="font-size:11px; color:var(--muted); text-align:center; padding:8px;">Bu tarih aralığında işlem yok.</div>' : filteredWithIndex.map(item => `
-<div style="display:flex; justify-content:space-between; padding:6px 8px; border:1px solid var(--border); border-radius:8px; background:var(--input-bg); align-items:center;">
+<div style="display:flex; justify-content:space-between; padding:6px 8px; border:1.5px solid var(--border); border-radius:8px; background:var(--card); align-items:center;">
 <div style="flex:1; overflow:hidden; padding-right:5px;"><b style="font-size:11px;">${item.t.prodName || item.t.name || 'Bilinmeyen Ürün'}</b> <span style="font-size:8px; color:var(--primary);">[${item.t.depot}]</span><div style="font-size:9px; color:var(--muted);">${item.t.date} ${item.t.desc ? ' • '+item.t.desc : ''}</div></div>
 <div style="display:flex; align-items:center; gap:4px;"><div style="font-weight:900; font-size:12px; color:${item.t.type === 'GİRİŞ' ? 'var(--success)' : 'var(--danger)'};">${item.t.type === 'GİRİŞ' ? '+' : '-'}${item.t.qty}</div>${isAdmin ? `<button class="btn btn-danger btn-sm" style="height:24px; padding:0 6px; font-size:9px;" onclick="showCustomConfirm('İşlem silinsin mi?', () => deleteTransaction(${item.idx}))">🗑️</button>` : ''}</div>
 </div>
@@ -3159,7 +3127,7 @@ let cell = { v: cellVal, t: typeof cellVal === 'number' ? 'n' : 's' };
 if (isHeader) {
 cell.s = {
 font: { bold: true, color: { rgb: "FFFFFF" } },
-fill: { fgColor: { rgb: "6366F1" } },
+fill: { fgColor: { rgb: "2563EB" } },
 alignment: { horizontal: "center", vertical: "center" }
 };
 } else {
@@ -3218,7 +3186,7 @@ startY: 20,
 head: [headRow],
 body: tableData,
 theme: 'grid',
-headStyles: { fillColor: [99, 102, 241], fontSize: 8, cellPadding: 2, fontStyle: 'bold' },
+headStyles: { fillColor: [37, 99, 235], fontSize: 8, cellPadding: 2, fontStyle: 'bold' },
 styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
 columnStyles: {
 0: { cellWidth: 'auto' },
