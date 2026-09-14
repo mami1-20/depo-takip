@@ -691,9 +691,9 @@ Veri görüntülemek için raporu getirin.
 <div class="card admin-only-card" id="userManagementCard" style="display:none;">
 <div class="card-title">
 <span>👥 Kullanıcı Yönetimi</span>
-<button class="btn btn-sm" style="height:28px; font-size:10px;" onclick="openModal('newUserModal'); openNewUserModal();">+ Kullanıcı</button>
+<button class="btn btn-sm btn-success" style="height:28px; font-size:10px;" onclick="openModal('userManagementModal'); openUserManagementModal();">⚙️ Yönet</button>
 </div>
-<div id="userListContainer" style="display:flex; flex-direction:column; gap:4px; margin-top:4px;"></div>
+<div style="font-size:11px; color:var(--muted); line-height:1.3;">Kullanıcıları listeleyin, rollerini ve şifrelerini düzenleyin.</div>
 </div>
 
 <div class="card admin-only-card" id="companySettingsCard" style="display:none;">
@@ -895,6 +895,24 @@ Veri görüntülemek için raporu getirin.
 <div style="display:flex; gap:6px; margin-top:8px;">
 <button class="btn btn-success" style="flex:1; height:36px; font-size:11px;" onclick="saveReorderedProducts()">Sıralamayı Kaydet</button>
 <button class="btn btn-outline" style="flex:1; height:36px; font-size:11px;" onclick="closeModal('productOrderModal'); closeProductOrderModal();">Vazgeç</button>
+</div>
+</div>
+</div>
+
+<!-- KULLANICI YÖNETİMİ MODAL PENCERESİ -->
+<div class="modal" id="userManagementModal">
+<div class="modal-box" style="max-width: 420px; width: 95%;">
+<div class="modal-header">
+<b style="font-size:12px;">👥 Kullanıcı Yönetim Paneli</b>
+<button class="btn btn-danger btn-sm" style="height:26px; width:26px; padding:0; font-size:11px;" onclick="closeModal('userManagementModal')">×</button>
+</div>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+<span style="font-size:11px; color:var(--muted);">Firma kullanıcılarını ve yetkilerini yönetin:</span>
+<button class="btn btn-sm btn-success" style="height:28px; font-size:10px;" onclick="openModal('newUserModal'); openNewUserModal();">+ Yeni Kullanıcı</button>
+</div>
+<div id="userListContainer" style="display:flex; flex-direction:column; gap:6px; max-height: 300px; overflow-y: auto; background:var(--bg); padding:6px; border-radius:8px; border:1.5px solid var(--border);"></div>
+<div style="display:flex; justify-content:flex-end; margin-top:10px;">
+<button class="btn btn-success" style="height:34px; padding:0 12px; font-size:11px;" onclick="closeModal('userManagementModal')">Tamam / Kapat</button>
 </div>
 </div>
 </div>
@@ -2136,6 +2154,12 @@ saveProductsToCloud();
 renderStock();
 }
 
+function openUserManagementModal() {
+if (!currentUser || currentUser.role !== 'admin') return;
+renderUserManagement();
+openModal('userManagementModal');
+}
+
 function renderProductManagementTable() {
 let container = document.getElementById('productMgmtTableContainer');
 if (!container) return;
@@ -2735,7 +2759,6 @@ if (superCard) superCard.style.display = 'none';
 let adminCards = document.querySelectorAll('.admin-only-card');
 if (currentUser.role === 'admin') {
 adminCards.forEach(card => card.style.display = 'block');
-renderUserManagement();
 } else {
 adminCards.forEach(card => card.style.display = 'none');
 }
@@ -2820,10 +2843,28 @@ if (dynRows) dynRows.innerHTML = '';
 addDynamicProductInputRow();
 openModal('multiProductModal');
 }
+
 function closeMultiProductModal() {}
+
 function checkMultiGroupSelection(el) { 
 let w = document.getElementById('multiNewGroupWrapper');
-if (w) w.style.display = (el.value === '__NEW__') ? 'block' : 'none'; 
+if (w) {
+if (el.value === '__NEW__') {
+w.style.display = 'block';
+setTimeout(() => {
+let newCatInput = document.getElementById('multiNewGroupInput');
+if (newCatInput) { newCatInput.focus(); newCatInput.select(); }
+}, 50);
+} else {
+w.style.display = 'none';
+let newCatInput = document.getElementById('multiNewGroupInput');
+if (newCatInput) newCatInput.value = '';
+setTimeout(() => {
+let firstProdInput = document.querySelector('.dyn-prod-name');
+if (firstProdInput) { firstProdInput.focus(); firstProdInput.select(); }
+}, 50);
+}
+}
 }
 
 function addDynamicProductInputRow() {
@@ -2875,10 +2916,10 @@ if (!currentUser || currentUser.role !== 'admin') return;
 let container = document.getElementById('userListContainer');
 if (!container) return;
 container.innerHTML = systemUsers.filter(u => u.company === currentCompany).map(u => `
-<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border:1.5px solid var(--border); border-radius:7px; background:var(--bg); gap:5px; flex-wrap:wrap;">
-<div style="flex:1; min-width:70px;"><b style="font-size:11px;">${u.username}</b> <span style="font-size:8px; color:var(--primary); display:block; font-weight:800;">${u.role.toUpperCase()}</span></div>
+<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border:1.5px solid var(--border); border-radius:7px; background:var(--card); gap:5px; flex-wrap:wrap;">
+<div style="flex:1; min-width:70px;"><b style="font-size:11px; color:var(--text);">${u.username}</b> <span style="font-size:8px; color:var(--primary); display:block; font-weight:800;">${u.role.toUpperCase()}</span></div>
 <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
-<select style="width:90px; height:26px; font-size:10px; padding:0 3px;" onchange="changeUserRole('${u.username}', this.value)">
+<select style="width:95px; height:26px; font-size:10px; padding:0 3px;" onchange="changeUserRole('${u.username}', this.value)">
 <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
 <option value="düzenleyen" ${u.role==='düzenleyen'?'selected':''}>Düzenleyen</option>
 <option value="görüntüleyen" ${u.role==='görüntüleyen'?'selected':''}>Görüntüleyen</option>
@@ -3221,7 +3262,7 @@ if (pSearch) pSearch.value = prodName;
 if (pSelect) pSelect.value = prodId;
 syncMaxLimit();
 if (listEl) listEl.style.display = 'none';
-if (qInput>0) {
+if (qInput) {
 qInput.focus();
 qInput.select();
 }
