@@ -112,7 +112,7 @@ max-width: 1300px !important;
 height: auto !important;
 min-height: calc(100vh - 32px);
 display: grid !important;
-grid-template-columns: 1fr !important; /* Giriş yapılı değilken tek kolon */
+grid-template-columns: 1fr !important; /* Giriş yapılmamışsa tek kolon */
 grid-template-rows: auto 1fr;
 gap: 12px;
 background: var(--card);
@@ -122,7 +122,7 @@ padding: 12px;
 box-shadow: var(--shadow-lg);
 overflow: visible !important;
 }
-/* Giriş yapıldığında çalışacak grid yapısı sınırlaması */
+/* Sadece giriş yapıldığında aktif olacak masaüstü grid düzeni */
 .app-layout.logged-in-layout {
 grid-template-columns: 240px 1fr !important;
 }
@@ -131,7 +131,7 @@ grid-column: 1 / -1;
 border-radius: 12px !important;
 }
 .desktop-sidebar {
-display: flex !important;
+display: none; /* Giriş yapılmamışsa kesinlikle gizli */
 flex-direction: column;
 gap: 6px;
 background: var(--bg);
@@ -141,6 +141,9 @@ padding: 10px;
 height: fit-content;
 position: sticky;
 top: 12px;
+}
+.app-layout.logged-in-layout .desktop-sidebar {
+display: flex !important; /* Giriş yapıldığında görünür */
 }
 .desktop-sidebar .nav-item {
 flex: unset !important;
@@ -416,7 +419,7 @@ input[type=number] { -moz-appearance: textfield; }
 </div>
 </div>
 
-<!-- Masaüstü Sol Menü (Sidebar) - Başlangıçta Gizli -->
+<!-- Masaüstü Sol Menü (Sidebar) - Başlangıçta Kesinlikle Gizli -->
 <div class="desktop-sidebar" id="desktopSidebar" style="display:none;">
 <button class="nav-item active" onclick="switchPage('stoklar')"><span class="nav-icon">📦</span><span>Stoklar</span></button>
 <button class="nav-item" id="sidebarItemIslem" onclick="switchPage('islem')"><span class="nav-icon">⚡</span><span>İşlem</span></button>
