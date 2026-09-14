@@ -363,6 +363,9 @@ gap: 6px;
 .badge-ok { background: rgba(16, 185, 129, 0.12); color: var(--success); }
 .badge-warn { background: rgba(239, 68, 68, 0.12); color: var(--danger); }
 
+.sortable-item { cursor: grab; user-select: none; }
+.sortable-item:active { cursor: grabbing; }
+
 .modal { display: none; position: fixed; inset: 0; background: rgba(3,7,18,0.75); z-index: 999; align-items: center; justify-content: center; padding: 12px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 #customConfirmModal, #customPromptModal { z-index: 1050 !important; }
 
@@ -2179,7 +2182,7 @@ ${groupOptions}
 <input type="text" class="mgmt-new-group" placeholder="Yeni Kategori" style="flex:1; min-width:75px; height:34px; font-size:11px; display:none;" onblur="autoSaveProduct('${p.id}')">
 <input type="text" class="mgmt-name" value="${p.name}" placeholder="Ürün Adı" style="flex:1.5; min-width:100px; height:34px; font-size:11px;" onchange="autoSaveProduct('${p.id}')">
 <div style="display:flex; gap:4px; align-items:center;">
-<button type="button" class="btn ${isActive ? 'btn-outline' : 'btn-success'} btn-sm" style="height:34px; font-size:10px; padding:0 6px;" onclick="toggleMgmtProductStatus('${p.id}')">${isActive ? '🟢' : '🔴'}</button>
+<button type="button" class="btn ${isActive ? 'btn-outline' : 'btn-success'} btn-sm" style="height:34px; font-size:13px; font-weight:900; padding:0 8px; line-height:1;" onclick="toggleMgmtProductStatus('${p.id}')" title="${isActive ? 'Ürünü Gizle' : 'Ürünü Göster'}">${isActive ? '<span style="color:#10b981;">●</span>' : '<span style="color:#ef4444;">●</span>'}</button>
 ${currentUser.role === 'admin' ? `<button type="button" class="btn btn-danger btn-sm" style="height:34px; font-size:11px; padding:0 8px;" onclick="showCustomConfirm('${p.name} silinsin mi?', () => deleteMgmtProduct('${p.id}'))" title="Sil">🗑️</button>` : ''}
 </div>
 </div>
@@ -2423,7 +2426,7 @@ container.innerHTML = filtered.map(({ p, origIdx }) => `
 function changeProductOrderIndex(oldIdx, newPosVal) {
 let newPos = parseInt(newPosVal, 10);
 if (isNaN(newPos)) return;
-newPos = newPos - 1; // 0 tabanlı indeks
+newPos = newPos - 1;
 if (newPos < 0) newPos = 0;
 if (newPos >= tempReorderProducts.length) newPos = tempReorderProducts.length - 1;
 
@@ -3045,7 +3048,7 @@ if (restoreBtn) restoreBtn.style.display = 'block';
 } else {
 if (alertCard) alertCard.style.display = 'block';
 if (restoreBtn) restoreBtn.style.display = 'none';
-if (alertList) alertList.innerHTML = criticalItems.map(c => `<div style="display:flex; justify-content:space-between; background:var(--card); padding:5px 8px; border-radius:6px; border:1px solid var(--border);"><span><b>${c.name}</b></span><span style="color:var(--danger); font-weight:800;">Kalan: ${c.qty}</span></div>`).join('');
+if (alertList) alertList.innerHTML = criticalItems.map(c => `<div style="display:flex; justify-content:space-between; background:var(--card); padding:5px 8px; border-radius:6px; border:1.5px solid var(--border);"><span><b>${c.name}</b></span><span style="color:var(--danger); font-weight:800;">Kalan: ${c.qty}</span></div>`).join('');
 }
 } else {
 if (alertCard) alertCard.style.display = 'none';
