@@ -261,28 +261,13 @@ transition: background 0.3s, border-color 0.3s;
 }
 .card-title { font-size: 12px; font-weight: 800; color: var(--text); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; letter-spacing: 0.3px; gap: 6px; }
 
-/* Bildirim (Toast) Tasarımı */
 #toastNotice {
-position: fixed; 
-top: -70px; 
-left: 50%; 
-transform: translateX(-50%);
-background: var(--card-glass); 
-backdrop-filter: blur(12px); 
--webkit-backdrop-filter: blur(12px);
-color: var(--text);
-box-shadow: var(--shadow-lg); 
-padding: 10px 16px; 
-border-radius: 12px;
-display: flex; 
-align-items: center; 
-gap: 8px; 
-z-index: 10000;
-transition: top 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.25);
-max-width: 90%; 
-width: max-content; 
-pointer-events: none; 
-border: 1.5px solid var(--border);
+position: fixed; top: -60px; left: 50%; transform: translateX(-50%);
+background: var(--card); backdrop-filter: blur(10px); color: var(--text);
+box-shadow: var(--shadow-lg); padding: 10px 14px; border-radius: 12px;
+display: flex; align-items: center; gap: 8px; z-index: 10000;
+transition: top 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.25);
+max-width: 90%; width: max-content; pointer-events: none; border: 1.5px solid var(--border);
 }
 #toastNotice.active { top: 10px; }
 .toast-body { display: flex; align-items: center; gap: 8px; max-width: 100%; }
@@ -1429,7 +1414,7 @@ if (titleEl) titleEl.textContent = format === 'xlsx' ? '📥 Excel Raporu Depo S
 let listContainer = document.getElementById('exportDepotsCheckboxList');
 if (listContainer) {
 listContainer.innerHTML = depots.map(d => `
-<label style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; cursor:pointer; background:var(--card); padding:6px 8px; border-radius:6px; border:1.5px solid var(--border);">
+<label style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; cursor:pointer; background:var(--card); padding:6px 8px; border-radius:6px; border:1px solid var(--border);">
 <input type="checkbox" class="export-depot-chk" value="${d}" checked style="width:14px; height:14px; accent-color:var(--primary);">
 <span>📍 ${d}</span>
 </label>
