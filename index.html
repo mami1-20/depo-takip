@@ -741,7 +741,21 @@ Veri görüntülemek için raporu getirin.
 </div>
 </div>
 
-<!-- RAPOR DEPO SEÇİMİ MODALI -->
+<div class="modal" id="customPromptModal">
+<div class="modal-box" style="max-width: 300px; padding: 16px;">
+<div style="font-size: 22px; text-align: center; margin-bottom: 6px;">✏️</div>
+<b style="font-size: 12px; display: block; margin-bottom: 6px; color: var(--text); text-align: center;" id="customPromptTitle">Bilgi Girişi</b>
+<div style="font-size: 11px; color: var(--muted); margin-bottom: 10px; line-height: 1.4; text-align: center;" id="customPromptMsg">Lütfen yeni değeri girin:</div>
+<div class="field" style="margin-bottom: 12px;">
+<input type="text" id="customPromptInput" style="height: 36px; font-size: 12px; text-align: center;">
+</div>
+<div style="display: flex; gap: 6px;">
+<button class="btn btn-outline" style="flex: 1; height: 34px; font-size: 11px;" onclick="closeModal('customPromptModal')">Vazgeç</button>
+<button class="btn btn-success" id="customPromptOkBtn" style="flex: 1; height: 34px; font-size: 11px;">Kaydet</button>
+</div>
+</div>
+</div>
+
 <div class="modal" id="exportDepotModal">
 <div class="modal-box" style="max-width: 320px;">
 <div class="modal-header">
@@ -3142,6 +3156,18 @@ consumptionMap[name] = roundNum((consumptionMap[name] || 0) + parseInputFloat(it
 let sortedConsumed = Object.entries(consumptionMap).sort((a,b) => b[1] - a[1]);
 if (sortedConsumed.length === 0) { showToast("Bilgi", "Çıktı alınacak tüketim verisi yok."); return; }
 
+let startVal = document.getElementById('startDate').value;
+let endVal = document.getElementById('endDate').value;
+let dateRangeStr = "";
+if (startVal && endVal) {
+let pStart = startVal.split('-');
+let pEnd = endVal.split('-');
+dateRangeStr = `Tarih Araligi: ${pStart[2]}.${pStart[1]}.${pStart[0]} - ${pEnd[2]}.${pEnd[1]}.${pEnd[0]}`;
+} else {
+let trNow = getTurkeyDateNow();
+dateRangeStr = `Tarih: ${trNow.shortDate}`;
+}
+
 const { jsPDF } = window.jspdf;
 let doc = new jsPDF('portrait', 'mm', 'a4');
 let trNow = getTurkeyDateNow();
@@ -3149,7 +3175,7 @@ let trNow = getTurkeyDateNow();
 doc.setFont("helvetica", "bold"); doc.setFontSize(12);
 doc.text(cleanTurkishChars(`${currentCompany || 'DEPO'} - TÜKETİLEN ÜRÜNLER ÖZETİ`), 14, 12);
 doc.setFontSize(8); doc.setFont("helvetica", "normal");
-doc.text(`Tarih Aralığı / Rapor: ${trNow.shortDate} ${trNow.timeStr}`, 14, 17);
+doc.text(cleanTurkishChars(dateRangeStr), 14, 17);
 
 let headRow = ['Urun Adi', 'Toplam Cikis Miktari'];
 let tableData = [];
@@ -3158,7 +3184,7 @@ tableData.push([cleanTurkishChars(name), qty]);
 });
 
 doc.autoTable({
-startY: 20,
+startY: 22,
 head: [headRow],
 body: tableData,
 theme: 'grid',
@@ -3168,7 +3194,7 @@ columnStyles: {
 0: { cellWidth: 'auto' },
 1: { cellWidth: 40, halign: 'right' }
 },
-margin: { left: 14, right: 14, top: 20, bottom: 10 }
+margin: { left: 14, right: 14, top: 22, bottom: 10 }
 });
 
 doc.save(`Tuketilen_Urunler_${trNow.day}.${trNow.month}.${trNow.year}.pdf`);
@@ -3238,7 +3264,7 @@ if (pSearch) pSearch.value = prodName;
 if (pSelect) pSelect.value = prodId;
 syncMaxLimit();
 if (listEl) listEl.style.display = 'none';
-if (qInput>0) {
+if (qInput) {
 qInput.focus();
 qInput.select();
 }
