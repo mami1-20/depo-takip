@@ -364,7 +364,9 @@ gap: 6px;
 .badge-warn { background: rgba(239, 68, 68, 0.12); color: var(--danger); }
 
 .modal { display: none; position: fixed; inset: 0; background: rgba(3,7,18,0.75); z-index: 999; align-items: center; justify-content: center; padding: 12px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-#customConfirmModal, #customPromptModal, #adminPasswordPromptModal, #editProductModal, #passwordModal, #userManagementModal { z-index: 1050 !important; }
+#editProductModal { z-index: 1040 !important; }
+#customConfirmModal { z-index: 1100 !important; }
+#adminPasswordPromptModal, #passwordModal, #userManagementModal { z-index: 1050 !important; }
 
 .modal-box { background: var(--card); color: var(--text); width: 100%; max-width: 380px; border-radius: 16px; padding: 14px; border: 1.5px solid var(--border); max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
 @keyframes modalPop {
@@ -1210,10 +1212,12 @@ let body = document.getElementById('pageBody');
 let btn = document.getElementById('themeToggleBtn');
 if (themeName === 'light') {
 if (body) body.setAttribute('data-theme', 'light');
+document.documentElement.setAttribute('data-theme', 'light');
 if (btn) btn.textContent = '🌙';
 if (save) localStorage.setItem('sys_theme_v1', 'light');
 } else {
 if (body) body.setAttribute('data-theme', 'dark');
+document.documentElement.setAttribute('data-theme', 'dark');
 if (btn) btn.textContent = '☀️';
 if (save) localStorage.setItem('sys_theme_v1', 'dark');
 }
@@ -1769,6 +1773,10 @@ closeCustomCalendar();
 }
 
 function switchPage(pageId) {
+try {
+sessionStorage.setItem('sys_active_page', pageId);
+} catch(e) {}
+
 let pages = document.querySelectorAll('.app-page');
 let navItems = document.querySelectorAll('.mobile-bottom-nav .nav-item');
 let sideItems = document.querySelectorAll('.desktop-sidebar .nav-item');
@@ -2876,7 +2884,13 @@ setTimeout(() => {
   let endVal = document.getElementById('endDate').value;
   if (startVal && endVal) filterReport(false); 
 }, 300);
-switchPage('stoklar');
+
+let lastPage = 'stoklar';
+try {
+let savedPage = sessionStorage.getItem('sys_active_page');
+if (savedPage) lastPage = savedPage;
+} catch(e) {}
+switchPage(lastPage);
 
 if (!sessionStorage.getItem('sys_welcome_shown')) {
 showToast("Hoş Geldiniz", currentUser.username);
@@ -2895,6 +2909,7 @@ function logout() {
 isLogged = false; currentUser = null; currentCompany = null;
 try { localStorage.removeItem('sys_logged_user'); } catch(e){}
 try { sessionStorage.removeItem('sys_welcome_shown'); } catch(e){}
+try { sessionStorage.removeItem('sys_active_page'); } catch(e){}
 try { auth.signOut(); } catch(e){}
 
 let layoutContainer = document.getElementById('appLayoutContainer');
@@ -3339,7 +3354,8 @@ const debouncedFilterSuggestions = debounce(() => { filterProductSuggestions(); 
 
 function filterProductSuggestions() {
 let pSearch = document.getElementById('productSearchInput');
-let rawQuery = pSearch ? pSearch.value : '';
+if (!pSearch) return;
+let rawQuery = pSearch.value;
 let normalizedQuery = turkishNormalize(rawQuery.trim());
 let listEl = document.getElementById('productSuggestionsList');
 if (!listEl) return;
