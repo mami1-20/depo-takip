@@ -683,7 +683,7 @@ Veri görüntülemek için raporu getirin.
 <div class="card admin-only-card" id="companySettingsCard" style="display:none;">
 <div class="card-title">
 <span>⚙️ Hesap, Profil ve Firma Bilgisi</span>
-<button id="openPasswordModalBtn" class="btn btn-outline btn-sm" style="height:28px; font-size:10px; border-color:var(--primary); color:var(--primary); cursor:pointer;">🔒 Şifre/Profil Düzenle</button>
+<button id="openPasswordModalBtn" class="btn btn-outline btn-sm" style="height:28px; font-size:10px; border-color:var(--primary); color:var(--primary); cursor:pointer;" onclick="openModal('passwordModal'); openPasswordModal();">🔒 Şifre/Profil Düzenle</button>
 </div>
 <div style="font-size:11px; color:var(--muted); line-height:1.3; display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
 <span>Aktif Firma: <b id="settingsCompanyDisplay" style="color:var(--text);">...</b></span>
@@ -3202,7 +3202,7 @@ showToast("Başarılı", "Rapor getirildi.");
 }
 }
 
-// TÜKETİLEN ÜRÜNLER ÖZETİ EXCEL ÇIKTISI
+// TÜKETİLEN ÜRÜNLER ÖZETİ EXCEL ÇIKTISI (KATEGORİLİ)
 function exportConsumptionExcel() {
 if (!isLogged) return;
 let consumptionMap = {};
@@ -3216,10 +3216,22 @@ consumptionMap[name] = roundNum((consumptionMap[name] || 0) + parseInputFloat(it
 let sortedConsumed = Object.entries(consumptionMap).sort((a,b) => b[1] - a[1]);
 if (sortedConsumed.length === 0) { showToast("Bilgi", "Çıktı alınacak tüketim verisi yok."); return; }
 
-let header = ["Ürün Adı", "Toplam Çıkış Miktarı"];
-let rowsData = [header];
+let groupedByCat = {};
 sortedConsumed.forEach(([name, qty]) => {
-rowsData.push([name, qty]);
+let prod = products.find(p => p.name.toLowerCase() === name.toLowerCase());
+let cat = prod ? prod.group : "DİĞER";
+if (!groupedByCat[cat]) groupedByCat[cat] = [];
+groupedByCat[cat].push({ name, qty });
+});
+
+let header = ["Kategori", "Ürün Adı", "Toplam Çıkış Miktarı"];
+let rowsData = [header];
+
+Object.keys(groupedByCat).sort().forEach(cat => {
+rowsData.push([`--- ${cat} ---`, "", ""]);
+groupedByCat[cat].forEach(item => {
+rowsData.push(["", item.name, item.qty]);
+});
 });
 
 let ws = {};
@@ -3227,19 +3239,28 @@ let range = { s: { c: 0, r: 0 }, e: { c: header.length - 1, r: rowsData.length -
 
 rowsData.forEach((row, rIdx) => {
 let isHeader = (rIdx === 0);
+let isCategory = (row[0] && String(row[0]).startsWith('---'));
+
 row.forEach((cellVal, cIdx) => {
 let cellRef = XLSX.utils.encode_cell({ r: rIdx, c: cIdx });
 let cell = { v: cellVal, t: typeof cellVal === 'number' ? 'n' : 's' };
+
 if (isHeader) {
 cell.s = {
 font: { bold: true, color: { rgb: "FFFFFF" } },
 fill: { fgColor: { rgb: "2563EB" } },
 alignment: { horizontal: "center", vertical: "center" }
 };
+} else if (isCategory) {
+cell.s = {
+font: { bold: true, color: { rgb: "1E3A8A" } },
+fill: { fgColor: { rgb: "E0E7FF" } },
+alignment: { horizontal: "left", vertical: "center" }
+};
 } else {
 cell.s = {
 font: { color: { rgb: "0F172A" } },
-alignment: { horizontal: cIdx === 1 ? "right" : "left", vertical: "center" }
+alignment: { horizontal: cIdx === 2 ? "right" : "left", vertical: "center" }
 };
 }
 ws[cellRef] = cell;
@@ -3248,17 +3269,17 @@ ws[cellRef] = cell;
 
 ws['!ref'] = XLSX.utils.encode_range(range);
 
-let colWidths = [30, 20];
+let colWidths = [25, 30, 20];
 ws['!cols'] = colWidths.map(w => ({ wch: w }));
 
 let wb = XLSX.utils.book_new();
 XLSX.utils.book_append_sheet(wb, ws, "Tuketilen_Urunler");
 let trNow = getTurkeyDateNow();
 XLSX.writeFile(wb, `Tuketilen_Urunler_${trNow.day}.${trNow.month}.${trNow.year}.xlsx`);
-showToast("Başarılı", "Tüketim Excel raporu indirildi.");
+showToast("Başarılı", "Kategorili tüketim Excel raporu indirildi.");
 }
 
-// TÜKETİLEN ÜRÜNLER ÖZETİ PDF ÇIKTISI
+// TÜKETİLEN ÜRÜNLER ÖZETİ PDF ÇIKTISI (KATEGORİLİ)
 function exportConsumptionPdf() {
 if (!isLogged) return;
 let consumptionMap = {};
@@ -3271,6 +3292,14 @@ consumptionMap[name] = roundNum((consumptionMap[name] || 0) + parseInputFloat(it
 
 let sortedConsumed = Object.entries(consumptionMap).sort((a,b) => b[1] - a[1]);
 if (sortedConsumed.length === 0) { showToast("Bilgi", "Çıktı alınacak tüketim verisi yok."); return; }
+
+let groupedByCat = {};
+sortedConsumed.forEach(([name, qty]) => {
+let prod = products.find(p => p.name.toLowerCase() === name.toLowerCase());
+let cat = prod ? prod.group : "DİĞER";
+if (!groupedByCat[cat]) groupedByCat[cat] = [];
+groupedByCat[cat].push({ name, qty });
+});
 
 let startVal = document.getElementById('startDate').value;
 let endVal = document.getElementById('endDate').value;
@@ -3293,10 +3322,14 @@ doc.text(cleanTurkishChars(`${currentCompany || 'DEPO'} - TÜKETİLEN ÜRÜNLER 
 doc.setFontSize(8); doc.setFont("helvetica", "normal");
 doc.text(cleanTurkishChars(dateRangeStr), 14, 17);
 
-let headRow = ['Urun Adi', 'Toplam Cikis Miktari'];
+let headRow = ['Kategori', 'Urun Adi', 'Toplam Cikis Miktari'];
 let tableData = [];
-sortedConsumed.forEach(([name, qty]) => {
-tableData.push([cleanTurkishChars(name), qty]);
+
+Object.keys(groupedByCat).sort().forEach(cat => {
+tableData.push([`--- ${cleanTurkishChars(cat)} ---`, '', '']);
+groupedByCat[cat].forEach(item => {
+tableData.push(['', cleanTurkishChars(item.name), item.qty]);
+});
 });
 
 doc.autoTable({
@@ -3306,15 +3339,26 @@ body: tableData,
 theme: 'grid',
 headStyles: { fillColor: [37, 99, 235], fontSize: 8, cellPadding: 2, fontStyle: 'bold' },
 styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+didParseCell: function (data) {
+let rowVal = data.row.raw[0];
+if (rowVal && String(rowVal).startsWith('---')) {
+data.cell.colSpan = headRow.length;
+data.cell.styles.fillColor = [224, 231, 255];
+data.cell.styles.textColor = [30, 58, 138];
+data.cell.styles.fontStyle = 'bold';
+data.cell.styles.halign = 'left';
+}
+},
 columnStyles: {
-0: { cellWidth: 'auto' },
-1: { cellWidth: 40, halign: 'right' }
+0: { cellWidth: 50 },
+1: { cellWidth: 'auto' },
+2: { cellWidth: 45, halign: 'right' }
 },
 margin: { left: 14, right: 14, top: 22, bottom: 10 }
 });
 
 doc.save(`Tuketilen_Urunler_${trNow.day}.${trNow.month}.${trNow.year}.pdf`);
-showToast("Başarılı", "Tüketim PDF raporu indirildi.");
+showToast("Başarılı", "Kategorili tüketim PDF raporu indirildi.");
 }
 
 function deleteTransaction(index) {
