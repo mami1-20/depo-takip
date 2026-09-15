@@ -3339,8 +3339,7 @@ const debouncedFilterSuggestions = debounce(() => { filterProductSuggestions(); 
 
 function filterProductSuggestions() {
 let pSearch = document.getElementById('productSearchInput');
-if (!pSearch) return;
-let rawQuery = pSearch.value;
+let rawQuery = pSearch ? pSearch.value : '';
 let normalizedQuery = turkishNormalize(rawQuery.trim());
 let listEl = document.getElementById('productSuggestionsList');
 if (!listEl) return;
