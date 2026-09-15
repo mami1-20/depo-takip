@@ -1544,10 +1544,12 @@ const { jsPDF } = window.jspdf;
 let doc = new jsPDF('portrait', 'mm', 'a4');
 let trNow = getTurkeyDateNow();
 
-let depotTitleStr = selectedDepots.join(' - ');
+let firstDepot = selectedDepots[0] || '';
+let otherDepots = selectedDepots.slice(1);
+let depotTitleStr = firstDepot + (otherDepots.length > 0 ? ' - ' + otherDepots.join(' - ') : '');
 
 doc.setFont("helvetica", "bold"); doc.setFontSize(12);
-doc.text(cleanTurkishChars(`${currentCompany || 'DEPO'} - ${depotTitleStr} STOK RAPORU`), 14, 12);
+doc.text(cleanTurkishChars(`${currentCompany || 'DEPO'} ${depotTitleStr} STOK RAPORU`), 14, 12);
 doc.setFontSize(8); doc.setFont("helvetica", "normal");
 doc.text(`Tarih: ${trNow.shortDate} ${trNow.timeStr}`, 14, 17);
 
@@ -2721,17 +2723,6 @@ if (descEl) descEl.value = '';
 renderStock();
 showToast("Başarılı", "Sepet depoya kaydedildi.");
 }
-
-function openPasswordModal() {
-let uInp = document.getElementById('settingsUsernameInput');
-let eInp = document.getElementById('settingsEmailInput');
-let cInp = document.getElementById('settingsCompanyNameInput');
-if (uInp) uInp.value = currentUser ? currentUser.username : '';
-if (eInp) eInp.value = currentUser ? (currentUser.email || '') : '';
-if (cInp) cInp.value = currentCompany || '';
-openModal('passwordModal');
-}
-function closePasswordModal() {}
 
 function saveNewUsername() {
 let uInp = document.getElementById('settingsUsernameInput');
