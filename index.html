@@ -2885,7 +2885,6 @@ setTimeout(() => {
 }, 300);
 switchPage('stoklar');
 
-// Sadece ilk oturum açılışında bir kez hoş geldiniz bildirimi gösterilir (Sayfa yenilemelerinde çıkmaz)
 if (!sessionStorage.getItem('sys_welcome_shown')) {
 showToast("Hoş Geldiniz", currentUser.username);
 sessionStorage.setItem('sys_welcome_shown', 'true');
@@ -2918,6 +2917,12 @@ let botNav = document.getElementById('mobileBottomNav');
 if (botNav) botNav.style.display = 'none';
 let sideBar = document.getElementById('desktopSidebar');
 if (sideBar) sideBar.style.display = 'none';
+
+let uInp = document.getElementById('userInput');
+let pInp = document.getElementById('pinInput');
+if (uInp) uInp.value = '';
+if (pInp) pInp.value = '';
+
 initCloudGlobalData();
 showToast("Çıkış", "Oturum kapatıldı.");
 }
