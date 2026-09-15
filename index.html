@@ -364,7 +364,7 @@ gap: 6px;
 .badge-warn { background: rgba(239, 68, 68, 0.12); color: var(--danger); }
 
 .modal { display: none; position: fixed; inset: 0; background: rgba(3,7,18,0.75); z-index: 999; align-items: center; justify-content: center; padding: 12px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-#customConfirmModal, #customPromptModal, #adminPasswordPromptModal, #editProductModal { z-index: 1050 !important; }
+#customConfirmModal, #customPromptModal, #adminPasswordPromptModal, #editProductModal, #passwordModal, #userManagementModal { z-index: 1050 !important; }
 
 .modal-box { background: var(--card); color: var(--text); width: 100%; max-width: 380px; border-radius: 16px; padding: 14px; border: 1.5px solid var(--border); max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
 @keyframes modalPop {
@@ -671,17 +671,17 @@ Veri görüntülemek için raporu getirin.
 </div>
 
 <div class="card admin-only-card" id="userManagementCard" style="display:none;">
-<div class="card-title">
+<div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
 <span>👥 Kullanıcı Yönetimi</span>
-<button class="btn btn-sm btn-success" style="height:28px; font-size:10px;" onclick="openModal('userManagementModal'); openUserManagementModal();">+ Kullanıcı</button>
+<button id="openUserMgmtModalBtn" class="btn btn-sm btn-success" style="height:28px; font-size:10px; cursor:pointer;">⚙️ Yönet</button>
 </div>
-<div id="userListContainer" style="display:flex; flex-direction:column; gap:4px; margin-top:4px;"></div>
+<div style="font-size:11px; color:var(--muted); line-height:1.3;">Firma kullanıcılarını ve yetkilerini panelden yönetin.</div>
 </div>
 
 <div class="card admin-only-card" id="companySettingsCard" style="display:none;">
 <div class="card-title">
 <span>⚙️ Hesap, Profil ve Firma Bilgisi</span>
-<button class="btn btn-outline btn-sm" style="height:28px; font-size:10px; border-color:var(--primary); color:var(--primary);" onclick="openModal('passwordModal'); openPasswordModal();">🔒 Değiştir</button>
+<button id="openPasswordModalBtn" class="btn btn-outline btn-sm" style="height:28px; font-size:10px; border-color:var(--primary); color:var(--primary); cursor:pointer;">🔒 Şifre/Profil Düzenle</button>
 </div>
 <div style="font-size:11px; color:var(--muted); line-height:1.3; display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
 <span>Aktif Firma: <b id="settingsCompanyDisplay" style="color:var(--text);">...</b></span>
@@ -884,6 +884,7 @@ Veri görüntülemek için raporu getirin.
 </div>
 </div>
 
+<!-- KULLANICI YÖNETİMİ MODAL PENCERESİ -->
 <div class="modal" id="userManagementModal">
 <div class="modal-box" style="max-width: 420px; width: 95%;">
 <div class="modal-header">
@@ -894,10 +895,45 @@ Veri görüntülemek için raporu getirin.
 <span style="font-size:11px; color:var(--muted);">Firma kullanıcılarını ve yetkilerini yönetin:</span>
 <button class="btn btn-sm btn-success" style="height:28px; font-size:10px;" onclick="openModal('newUserModal'); openNewUserModal();">+ Kullanıcı</button>
 </div>
-<div id="userListContainer" style="display:flex; flex-direction:column; gap:4px; margin-top:4px;"></div>
+<div id="userListContainer" style="display:flex; flex-direction:column; gap:6px; max-height: 300px; overflow-y: auto; background:var(--bg); padding:6px; border-radius:8px; border:1.5px solid var(--border);"></div>
 <div style="display:flex; justify-content:flex-end; margin-top:10px;">
 <button class="btn btn-success" style="height:34px; padding:0 12px; font-size:11px;" onclick="closeModal('userManagementModal')">Tamam / Kapat</button>
 </div>
+</div>
+</div>
+
+<!-- YENİ KULLANICI EKLEME MODALI -->
+<div class="modal" id="newUserModal">
+<div class="modal-box" style="max-width:320px;">
+<div class="modal-header">
+<b style="font-size:12px;">➕ Yeni Kullanıcı Ekle</b>
+<button class="btn btn-danger btn-sm" style="height:26px; width:26px; padding:0; font-size:11px;" onclick="closeModal('newUserModal'); closeNewUserModal();">×</button>
+</div>
+<div class="field"><label>Kullanıcı Adı</label><input type="text" id="newUsernameInput" placeholder="Örn: ahmet"></div>
+<div class="field"><label>Şifre</label><input type="password" id="newUserPinInput" placeholder="Şifre"></div>
+<div class="field">
+<label>Rolü / Yetkisi</label>
+<select id="newUserRoleSelect">
+<option value="görüntüleyen">Görüntüleyen (Salt Okunur)</option>
+<option value="düzenleyen">Düzenleyen (İşlem Yapabilir)</option>
+<option value="admin">Admin (Tam Yetki)</option>
+</select>
+</div>
+<button class="btn btn-success" style="width:100%; height:36px; margin-top:6px; font-size:11px;" onclick="saveNewUser()">Kullanıcıyı Ekle</button>
+</div>
+</div>
+
+<!-- ADMİN ŞİFRE DEĞİŞTİRME MODALI -->
+<div class="modal" id="adminChangeUserPinModal">
+<div class="modal-box" style="max-width:300px;">
+<div class="modal-header">
+<b style="font-size:12px;" id="adminModalTitle">🔑 Şifre Değiştir</b>
+<button class="btn btn-danger btn-sm" style="height:26px; width:26px; padding:0; font-size:11px;" onclick="closeModal('adminChangeUserPinModal'); closeAdminChangeUserPinModal();">×</button>
+</div>
+<input type="hidden" id="targetUsernameToChangePin">
+<div class="field"><label>Yeni Şifre</label><input type="password" id="adminNewPinInput" placeholder="Yeni Şifre"></div>
+<div class="field"><label>Yeni Şifre (Tekrar)</label><input type="password" id="adminNewPinConfirmInput" placeholder="Yeni Şifre (Tekrar)"></div>
+<button class="btn btn-success" style="width:100%; height:36px; margin-top:6px; font-size:11px;" onclick="saveAdminChangedUserPin()">Şifreyi Güncelle</button>
 </div>
 </div>
 
@@ -917,6 +953,46 @@ Veri görüntülemek için raporu getirin.
 <div style="display:flex; justify-content:flex-end; margin-top:8px;">
 <button class="btn btn-success" style="height:34px; padding:0 12px; font-size:11px;" onclick="closeModal('editProductModal'); closeEditProductModal();">Tamam / Kapat</button>
 </div>
+</div>
+</div>
+
+<!-- ŞİFRE/PROFİL DÜZENLEME MODALI -->
+<div class="modal" id="passwordModal">
+<div class="modal-box" style="max-width: 340px;">
+<div class="modal-header">
+<b style="font-size:12px;">🔒 Hesap ve Şifre Ayarları</b>
+<button class="btn btn-danger btn-sm" style="height:26px; width:26px; padding:0; font-size:11px;" onclick="closeModal('passwordModal'); closePasswordModal();">×</button>
+</div>
+<div class="field" style="margin-bottom:6px;">
+<label>Kullanıcı Adı Değiştir</label>
+<input type="text" id="settingsUsernameInput" placeholder="Yeni Kullanıcı Adı" style="margin-bottom:3px;">
+<div style="display:flex; gap:6px;">
+<input type="password" id="currentPinForUsername" placeholder="Mevcut Şifre" style="flex:1;">
+<button type="button" class="btn btn-success btn-sm" style="height:34px; padding:0 8px; font-size:10px;" onclick="saveNewUsername()">Güncelle</button>
+</div>
+</div>
+<hr style="border:0; border-top:1.5px solid var(--border); margin:8px 0;">
+<div class="field" style="margin-bottom:8px;">
+<label>E-posta Adresi Değiştir</label>
+<input type="email" id="settingsEmailInput" placeholder="Yeni E-posta" style="margin-bottom:3px;">
+<div style="display:flex; gap:6px;">
+<input type="password" id="currentPinForEmail" placeholder="Mevcut Şifre" style="flex:1;">
+<button type="button" class="btn btn-success btn-sm" style="height:34px; padding:0 8px; font-size:10px;" onclick="saveNewEmail()">Güncelle</button>
+</div>
+</div>
+<hr style="border:0; border-top:1.5px solid var(--border); margin:8px 0;">
+<div class="field" style="margin-bottom:8px;">
+<label>Firma Adını Değiştir</label>
+<div style="display:flex; gap:6px;">
+<input type="text" id="settingsCompanyNameInput" placeholder="Yeni Firma Adı" style="flex:1;">
+<button type="button" class="btn btn-success btn-sm" style="height:34px; padding:0 8px; font-size:10px;" onclick="saveNewCompanyNameFromSettings()">Güncelle</button>
+</div>
+</div>
+<hr style="border:0; border-top:1.5px solid var(--border); margin:8px 0;">
+<div class="field"><label>Eski Şifre</label><input type="password" id="oldPinInput" placeholder="Eski Şifre"></div>
+<div class="field"><label>Yeni Şifre</label><input type="password" id="newPinInput" placeholder="Yeni Şifre"></div>
+<div class="field"><label>Yeni Şifre (Tekrar)</label><input type="password" id="newPinConfirmInput" placeholder="Yeni Şifre (Tekrar)"></div>
+<button class="btn btn-success" style="width:100%; height:36px; margin-top:6px; font-size:11px;" onclick="saveNewPassword()">Şifreyi Güncelle</button>
 </div>
 </div>
 
@@ -2104,6 +2180,23 @@ e.preventDefault();
 openEditProductModal();
 });
 }
+
+let passwordBtn = document.getElementById('openPasswordModalBtn');
+if (passwordBtn) {
+passwordBtn.addEventListener('click', function(e) {
+e.preventDefault();
+openPasswordModal();
+});
+}
+
+let userMgmtBtn = document.getElementById('openUserMgmtModalBtn');
+if (userMgmtBtn) {
+userMgmtBtn.addEventListener('click', function(e) {
+e.preventDefault();
+renderUserManagement();
+openModal('userManagementModal');
+});
+}
 });
 
 function openUserManagementModal() {
@@ -2684,7 +2777,6 @@ if (oldP !== currentUser.pin || newP !== newPConf || newP.length < 3) { showToas
 let uObj = systemUsers.find(u => u.username === currentUser.username && u.company === currentUser.company);
 if (uObj) { uObj.pin = newP; saveUsersToCloud(); currentUser.pin = newP; try { localStorage.setItem('sys_logged_user', JSON.stringify(currentUser)); } catch(e){} }
 closeModal('passwordModal');
-closePasswordModal();
 showToast("Başarılı", "Şifre güncellendi.");
 }
 
@@ -2924,7 +3016,7 @@ if (!currentUser || currentUser.role !== 'admin') return;
 let container = document.getElementById('userListContainer');
 if (!container) return;
 container.innerHTML = systemUsers.filter(u => u.company === currentCompany).map(u => `
-<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border:1.5px solid var(--border); border-radius:7px; background:var(--bg); gap:5px; flex-wrap:wrap;">
+<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border:1.5px solid var(--border); border-radius:7px; background:var(--card); gap:5px; flex-wrap:wrap;">
 <div style="flex:1; min-width:70px;"><b style="font-size:11px;">${u.username}</b> <span style="font-size:8px; color:var(--primary); display:block; font-weight:800;">${u.role.toUpperCase()}</span></div>
 <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
 <select style="width:90px; height:26px; font-size:10px; padding:0 3px;" onchange="changeUserRole('${u.username}', this.value)">
