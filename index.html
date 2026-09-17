@@ -1281,7 +1281,7 @@ let isPasswordRecoveryMode = false;
 
 // --- HAREKETSİZLİK OTOMATİK ÇIKIŞ (5 DAKİKA) ---
 let inactivityTimer = null;
-const INACTIVITY_LIMIT_MS = 5 * 60 * 1000; // 5 Dakika
+const INACTIVITY_LIMIT_MS = 5 * 60 * 1000;
 
 function resetInactivityTimer() {
 if (!isLogged) return;
@@ -1467,9 +1467,7 @@ for (let u of companyUsers) {
 if (u.email && u.email !== 'admin@depotakip.com' && u.email !== 'mami@depotakip.com') {
 try {
 await _supabase.rpc('delete_auth_user_by_email', { target_email: u.email });
-} catch(authErr) {
-console.warn("Auth silme uyarısı:", authErr);
-}
+} catch(authErr) {}
 }
 }
 
@@ -1941,9 +1939,8 @@ emailRedirectTo: window.location.origin
 });
 
 if (authError) {
-console.error("Auth Hatası:", authError);
 if (authError.message.toLowerCase().includes("rate limit")) {
-showToast("Kota Aşıldı", "Supabase e-posta kotası aşıldı. Lütfen daha sonra deneyin veya SMTP bağlayın.", true);
+showToast("Kota Aşıldı", "Supabase e-posta kotası aşıldı.", true);
 } else {
 showToast("Kayıt Hatası", authError.message, true);
 }
@@ -1951,7 +1948,7 @@ return;
 }
 
 if (!authData || !authData.user) {
-showToast("Hata", "Kullanıcı oluşturulamadı. Farklı bir e-posta deneyin.", true);
+showToast("Hata", "Kullanıcı oluşturulamadı.", true);
 return;
 }
 
@@ -1979,7 +1976,7 @@ await setDocData(`company_${companyName}_config`, { appTitleText: `📦 ${compan
 await setDocData(`company_${companyName}_products`, { list: [] });
 await setDocData(`company_${companyName}_transactions`, { list: [] });
 
-showToast("Aktivasyon Gönderildi", "Lütfen e-postanızı (Spam kutusu dahil) kontrol edin ve onay linkine tıklayın.");
+showToast("Aktivasyon Gönderildi", "Lütfen e-postanızı kontrol edin.");
 showLoginScreen();
 } catch (err) {
 showToast("Hata", "Kayıt sırasında bir problem oluştu.", true);
@@ -1996,7 +1993,7 @@ let uname = document.getElementById('saUserInput').value.trim().toLowerCase();
 let upin = document.getElementById('saPinInput').value.trim();
 
 if (!compName || !uname || !upin) {
-showToast("Eksik", "Lütfen firma adı, kullanıcı adı ve şifreyi girin.", true);
+showToast("Eksik", "Lütfen tüm alanları girin.", true);
 return;
 }
 
@@ -2007,8 +2004,6 @@ if (usersList.some(u => u.username.toLowerCase() === uname)) {
 showToast("Kullanımda", "Bu kullanıcı adı zaten alınmış.", true);
 return;
 }
-
-showToast("Oluşturuluyor...", "Firma sisteme ekleniyor...");
 
 usersList.push({
 id: 'sa_' + Date.now(),
@@ -2031,72 +2026,38 @@ document.getElementById('saUserInput').value = '';
 document.getElementById('saPinInput').value = '';
 
 renderSuperAdminPanel();
-showToast("Başarılı", `${compName} firması anında oluşturuldu.`);
+showToast("Başarılı", `${compName} firması oluşturuldu.`);
 }
 
 async function resendCurrentEmailVerification() {
 let uInp = document.getElementById('userInput');
 let usernameInput = uInp ? uInp.value.trim().toLowerCase() : '';
-
-if (!usernameInput) {
-showToast("Eksik Bilgi", "Lütfen önce kullanıcı adınızı girin.", true);
-return;
-}
+if (!usernameInput) { showToast("Eksik", "Önce kullanıcı adınızı girin.", true); return; }
 
 let val = await getDocData("global_users");
 let usersList = val && val.list ? val.list : systemUsers;
 let found = usersList.find(u => u.username.toLowerCase() === usernameInput);
 
-if (!found || !found.email) {
-showToast("Hata", "Kullanıcı veya kayıtlı e-posta bulunamadı.", true);
-return;
-}
+if (!found || !found.email) { showToast("Hata", "Kullanıcı veya e-posta bulunamadı.", true); return; }
 
-showToast("Gönderiliyor...", "Onay e-postası tekrar tetikleniyor...");
 try {
-const { error } = await _supabase.auth.resend({
-type: 'signup',
-email: found.email,
-options: { emailRedirectTo: window.location.origin }
-});
-
-if (error) {
-showToast("Hata", error.message, true);
-} else {
-showToast("Gönderildi", `${found.email} adresine onay linki gönderildi.`);
-}
-} catch(e) {
-showToast("Hata", "E-posta gönderilemedi.", true);
-}
+const { error } = await _supabase.auth.resend({ type: 'signup', email: found.email, options: { emailRedirectTo: window.location.origin } });
+if (error) showToast("Hata", error.message, true);
+else showToast("Gönderildi", `${found.email} adresine onay linki gönderildi.`);
+} catch(e) { showToast("Hata", "Gönderilemedi.", true); }
 }
 
 async function sendPasswordResetEmail() {
 let emailInput = document.getElementById('forgotEmailInput');
 if (!emailInput) return;
 let email = emailInput.value.trim();
-
-if (!email) {
-showToast("Eksik", "Lütfen kayıtlı e-posta adresinizi girin.", true);
-return;
-}
-
-showToast("Gönderiliyor...", "Sıfırlama bağlantısı oluşturuluyor...");
+if (!email) { showToast("Eksik", "E-posta girin.", true); return; }
 
 try {
-const { error } = await _supabase.auth.resetPasswordForEmail(email, {
-redirectTo: window.location.origin
-});
-
-if (error) {
-showToast("Hata", error.message, true);
-} else {
-showToast("Bağlantı Gönderildi", "E-posta kutunuzu (Spam dahil) kontrol edin.");
-emailInput.value = '';
-showLoginScreen();
-}
-} catch (err) {
-showToast("Hata", "Sıfırlama e-postası gönderilemedi.", true);
-}
+const { error } = await _supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+if (error) showToast("Hata", error.message, true);
+else { showToast("Gönderildi", "Sıfırlama bağlantısı yollandı."); showLoginScreen(); }
+} catch (err) { showToast("Hata", "Gönderilemedi.", true); }
 }
 
 async function initCompanyData(compName) {
@@ -2119,11 +2080,7 @@ renderStock();
 }
 
 async function saveConfigToCloud() { 
-await setDocData(`company_${currentCompany}_config`, { 
-appTitleText: appTitleText.toUpperCase(), 
-depots: depots, 
-hiddenCategoriesPerDepot: hiddenCategoriesPerDepot 
-}); 
+await setDocData(`company_${currentCompany}_config`, { appTitleText: appTitleText.toUpperCase(), depots: depots, hiddenCategoriesPerDepot: hiddenCategoriesPerDepot }); 
 }
 async function saveProductsToCloud() { await setDocData(`company_${currentCompany}_products`, { list: products }); }
 async function saveUsersToCloud() { await setDocData("global_users", { list: systemUsers }); }
@@ -2167,8 +2124,6 @@ localStorage.setItem('sys_cached_company', currentCompany);
 } catch(e){}
 await initCompanyData(newComp);
 updateAuthAreaUI();
-let compDisp = document.getElementById('settingsCompanyDisplay');
-if (compDisp) compDisp.textContent = currentCompany;
 showToast("Başarılı", "Firma adı güncellendi.");
 }
 
@@ -2305,14 +2260,10 @@ let cat = chk.getAttribute('data-category');
 let depot = chk.getAttribute('data-depot');
 let isChecked = chk.checked;
 
-if (!hiddenCategoriesPerDepot[depot]) {
-hiddenCategoriesPerDepot[depot] = [];
-}
+if (!hiddenCategoriesPerDepot[depot]) { hiddenCategoriesPerDepot[depot] = []; }
 
 if (isChecked) {
-if (!hiddenCategoriesPerDepot[depot].includes(cat)) {
-hiddenCategoriesPerDepot[depot].push(cat);
-}
+if (!hiddenCategoriesPerDepot[depot].includes(cat)) { hiddenCategoriesPerDepot[depot].push(cat); }
 } else {
 hiddenCategoriesPerDepot[depot] = hiddenCategoriesPerDepot[depot].filter(c => c !== cat);
 }
@@ -2325,31 +2276,29 @@ function renameCategory(oldName, newNameVal) {
 let newName = newNameVal.trim().toUpperCase();
 if (!newName || oldName === newName) return;
 if (products.some(p => p.group === newName)) {
-showToast("Hata", "Bu isimde başka bir kategori zaten var.", true);
+showToast("Hata", "Bu isimde başka kategori var.", true);
 renderCategoryModalList();
 return;
 }
-products.forEach(p => {
-if (p.group === oldName) p.group = newName;
-});
+products.forEach(p => { if (p.group === oldName) p.group = newName; });
 saveProductsToCloud();
 renderCategoryModalList();
 renderStock();
-showToast("Başarılı", `Kategori "${newName}" olarak güncellendi.`);
+showToast("Başarılı", `Kategori güncellendi.`);
 }
 
 function deleteEntireCategory(catName) {
-if (!currentUser || currentUser.role !== 'admin') { showToast("Yetki Yok", "Admin yetkisi gerekli.", true); return; }
+if (!currentUser || currentUser.role !== 'admin') return;
 products = products.filter(p => p.group !== catName);
 saveProductsToCloud();
 renderCategoryModalList();
 renderStock();
-showToast("Silindi", `"${catName}" kategorisi kaldırıldı.`);
+showToast("Silindi", "Kategori kaldırıldı.");
 }
 
 function openEditProductModal() {
 if (!currentUser || currentUser.role === 'görüntüleyen') {
-showToast("Yetki Yok", "Bu işlem için yetkiniz yok.", true);
+showToast("Yetki Yok", "Yetkiniz yok.", true);
 return;
 }
 let searchInput = document.getElementById('productMgmtSearch');
@@ -2410,12 +2359,6 @@ let profileSection = document.getElementById('passwordModalProfileSection');
 if (profileSection) profileSection.style.display = 'block';
 }
 
-function openUserManagementModal() {
-if (!currentUser || currentUser.role !== 'admin') return;
-renderUserManagement();
-openModal('userManagementModal');
-}
-
 function renderProductManagementTable() {
 let container = document.getElementById('productMgmtTableContainer');
 if (!container) return;
@@ -2449,8 +2392,8 @@ ${groupOptions}
 <input type="text" class="mgmt-new-group" placeholder="Yeni Kategori" style="flex:1; min-width:75px; height:34px; font-size:11px; display:none;" onblur="autoSaveProduct('${p.id}')">
 <input type="text" class="mgmt-name" value="${p.name}" placeholder="Ürün Adı" style="flex:1.5; min-width:100px; height:34px; font-size:11px;" onchange="autoSaveProduct('${p.id}')">
 <div style="display:flex; gap:4px; align-items:center;">
-<button type="button" class="btn ${isActive ? 'btn-success' : 'btn-danger'} btn-sm" style="height:34px; font-size:10px; font-weight:800; padding:0 10px;" onclick="toggleMgmtProductStatus('${p.id}')" title="${isActive ? 'Ürünü Pasif Yap' : 'Ürünü Aktif Yap'}">${isActive ? 'AKTİF' : 'PASİF'}</button>
-${currentUser.role === 'admin' ? `<button type="button" class="btn btn-danger btn-sm" style="height:34px; font-size:11px; padding:0 8px;" onclick="showCustomConfirm('${p.name} silinsin mi?', () => deleteMgmtProduct('${p.id}'))" title="Sil">🗑️</button>` : ''}
+<button type="button" class="btn ${isActive ? 'btn-success' : 'btn-danger'} btn-sm" style="height:34px; font-size:10px; font-weight:800; padding:0 10px;" onclick="toggleMgmtProductStatus('${p.id}')">${isActive ? 'AKTİF' : 'PASİF'}</button>
+${currentUser.role === 'admin' ? `<button type="button" class="btn btn-danger btn-sm" style="height:34px; font-size:11px; padding:0 8px;" onclick="showCustomConfirm('${p.name} silinsin mi?', () => deleteMgmtProduct('${p.id}'))">🗑️</button>` : ''}
 </div>
 </div>
 <div style="display:flex; flex-direction:column; gap:4px; background:var(--bg); padding:6px; border-radius:6px; border:1.5px solid var(--border);">
@@ -2518,17 +2461,15 @@ p.active = p.active === false ? true : false;
 saveProductsToCloud();
 renderProductManagementTable();
 renderStock();
-showToast("Güncellendi", "Ürün durumu değiştirildi.");
 }
 }
 
 function deleteMgmtProduct(prodId) {
-if (!currentUser || currentUser.role !== 'admin') { showToast("Yetki Yok", "Admin yetkisi gerekiyor.", true); return; }
+if (!currentUser || currentUser.role !== 'admin') return;
 products = products.filter(x => x.id !== prodId);
 saveProductsToCloud();
 renderProductManagementTable();
 renderStock();
-showToast("Silindi", "Ürün kaldırıldı.");
 }
 
 function syncMaxLimit() {
@@ -2623,9 +2564,7 @@ let newDepots = [];
 document.querySelectorAll('.depot-mgmt-block').forEach(block => {
 let nameInput = block.querySelector('.depot-name-input');
 let dName = nameInput ? nameInput.value.trim().toUpperCase() : '';
-if (dName && !newDepots.includes(dName)) {
-newDepots.push(dName);
-}
+if (dName && !newDepots.includes(dName)) { newDepots.push(dName); }
 });
 
 if (newDepots.length === 0) { showToast("Hata", "Geçerli depo adı girin.", true); return; }
@@ -2638,25 +2577,16 @@ depots.forEach(d => {
 no[d] = p.openings[d] !== undefined ? parseInputFloat(p.openings[d]) : 0; 
 nc[d] = p.criticals[d] !== undefined ? parseInputFloat(p.criticals[d]) : 0; 
 });
-p.openings = no; 
-p.criticals = nc; 
-p.allowedDepots = [...depots];
+p.openings = no; p.criticals = nc; p.allowedDepots = [...depots];
 });
 
-saveConfigToCloud(); 
-saveProductsToCloud(); 
-updateDepotUI(); 
-closeModal('depotModal'); 
-closeDepotModal(); 
-renderStock();
+saveConfigToCloud(); saveProductsToCloud(); updateDepotUI(); closeModal('depotModal'); closeDepotModal(); renderStock();
 showToast("Başarılı", "Depolar güncellendi.");
 }
 
 function openProductOrderModal() {
 if (!currentUser || currentUser.role === 'görüntüleyen') return;
 tempReorderProducts = JSON.parse(JSON.stringify(products));
-let searchInput = document.getElementById('productOrderSearchInput');
-if (searchInput) searchInput.value = '';
 renderProductOrderList();
 openModal('productOrderModal');
 }
@@ -2665,21 +2595,7 @@ function closeProductOrderModal() {}
 function renderProductOrderList() {
 let container = document.getElementById('sortableProductList');
 if (!container) return;
-let rawSearch = document.getElementById('productOrderSearchInput')?.value || '';
-let searchWords = turkishNormalize(rawSearch.trim()).split(/\s+/);
-
-let filtered = tempReorderProducts.map((p, origIdx) => ({ p, origIdx })).filter(item => {
-if (!rawSearch.trim()) return true;
-let targetText = turkishNormalize(item.p.name + " " + item.p.group);
-return searchWords.every(w => targetText.includes(w));
-});
-
-if (filtered.length === 0) {
-container.innerHTML = '<div style="text-align:center; color:var(--muted); padding:10px;">Ürün bulunamadı.</div>';
-return;
-}
-
-container.innerHTML = filtered.map(({ p, origIdx }) => `
+container.innerHTML = tempReorderProducts.map((p, origIdx) => `
 <div style="display:flex; justify-content:space-between; align-items:center; background:var(--card); padding:6px 8px; border-radius:7px; border:1.5px solid var(--border); gap:6px;">
 <div style="flex:1; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">[<b>${p.group}</b>] ${p.name}</div>
 <div style="display:flex; align-items:center; gap:4px;">
@@ -2702,35 +2618,11 @@ tempReorderProducts.splice(newPos, 0, item);
 renderProductOrderList();
 }
 
-function moveProductOrder(idx, dir) {
-let target = idx + dir;
-if (target < 0 || target >= tempReorderProducts.length) return;
-let temp = tempReorderProducts[idx]; tempReorderProducts[idx] = tempReorderProducts[target]; tempReorderProducts[target] = temp;
-renderProductOrderList();
-}
+function reverseProductOrder() { tempReorderProducts.reverse(); renderProductOrderList(); }
+function saveReorderedProducts() { products = JSON.parse(JSON.stringify(tempReorderProducts)); saveProductsToCloud(); closeModal('productOrderModal'); closeProductOrderModal(); renderStock(); showToast("Başarılı", "Sıralama kaydedildi."); }
 
-function reverseProductOrder() { 
-tempReorderProducts.reverse(); 
-renderProductOrderList(); 
-}
-
-function saveReorderedProducts() { 
-products = JSON.parse(JSON.stringify(tempReorderProducts)); 
-saveProductsToCloud(); 
-closeModal('productOrderModal'); 
-closeProductOrderModal(); 
-renderStock(); 
-showToast("Başarılı", "Sıralama kaydedildi."); 
-}
-
-function minimizeCriticalAlertCard() { 
-isCriticalCardMinimized = !isCriticalCardMinimized; 
-renderStock(); 
-}
-function restoreCriticalAlertCard() { 
-isCriticalCardMinimized = false; 
-renderStock(); 
-}
+function minimizeCriticalAlertCard() { isCriticalCardMinimized = !isCriticalCardMinimized; renderStock(); }
+function restoreCriticalAlertCard() { isCriticalCardMinimized = false; renderStock(); }
 
 function openQuickTxModal(prodId) {
 if (!currentUser || currentUser.role === 'görüntüleyen') return;
@@ -2854,14 +2746,7 @@ currentCart.push({ id: 'cart_' + Date.now(), prodId: prod.id, prodName: prod.nam
 renderCart();
 
 let pSearch = document.getElementById('productSearchInput');
-if (pSearch) {
-pSearch.value = '';
-setTimeout(() => {
-pSearch.focus();
-pSearch.select();
-}, 50);
-}
-
+if (pSearch) { pSearch.value = ''; setTimeout(() => { pSearch.focus(); pSearch.select(); }, 50); }
 let pSelect = document.getElementById('prodSelect');
 if (pSelect) pSelect.value = '';
 if (qtyEl) qtyEl.value = '1';
@@ -2941,14 +2826,7 @@ let newUname = uInp.value.trim().toLowerCase();
 let currentPin = pInp.value.trim();
 if (!newUname || currentPin !== currentUser.pin) { showToast("Hata", "Bilgiler hatalı.", true); return; }
 let uObj = systemUsers.find(u => u.username === currentUser.username && u.company === currentUser.company);
-if (uObj) { 
-uObj.username = newUname; 
-await saveUsersToCloud(); 
-currentUser.username = newUname; 
-try { localStorage.setItem('sys_logged_user', JSON.stringify(currentUser)); } catch(e){}
-updateAuthAreaUI(); 
-showToast("Başarılı", "Kullanıcı adı güncellendi."); 
-}
+if (uObj) { uObj.username = newUname; await saveUsersToCloud(); currentUser.username = newUname; try { localStorage.setItem('sys_logged_user', JSON.stringify(currentUser)); } catch(e){} updateAuthAreaUI(); showToast("Başarılı", "Kullanıcı adı güncellendi."); }
 }
 
 async function saveNewEmail() {
@@ -2959,17 +2837,9 @@ let newEmail = eInp.value.trim();
 let currentPin = pInp.value.trim();
 if (!newEmail || currentPin !== currentUser.pin) { showToast("Hata", "Şifre yanlış.", true); return; }
 
-try {
-await _supabase.auth.updateUser({ email: newEmail });
-} catch(e) {}
-
+try { await _supabase.auth.updateUser({ email: newEmail }); } catch(e) {}
 let uObj = systemUsers.find(u => u.username === currentUser.username && u.company === currentUser.company);
-if (uObj) { 
-uObj.email = newEmail; 
-await saveUsersToCloud(); 
-currentUser.email = newEmail; 
-try { localStorage.setItem('sys_logged_user', JSON.stringify(currentUser)); } catch(e){} 
-}
+if (uObj) { uObj.email = newEmail; await saveUsersToCloud(); currentUser.email = newEmail; try { localStorage.setItem('sys_logged_user', JSON.stringify(currentUser)); } catch(e){} }
 showToast("Başarılı", "E-posta güncellendi.");
 }
 
@@ -2978,62 +2848,20 @@ let oldP = document.getElementById('oldPinInput').value.trim();
 let newP = document.getElementById('newPinInput').value.trim();
 let newPConf = document.getElementById('newPinConfirmInput').value.trim();
 
-if (!newP || newP !== newPConf || newP.length < 6) { 
-showToast("Hata", "Yeni şifreler uyuşmuyor veya 6 karakterden kısa.", true); 
-return; 
-}
-
-if (!isPasswordRecoveryMode && currentUser && currentUser.pin && oldP !== currentUser.pin) {
-showToast("Hata", "Eski şifreniz hatalı.", true);
-return;
-}
+if (!newP || newP !== newPConf || newP.length < 6) { showToast("Hata", "Şifreler uyuşmuyor veya 6 karakterden kısa.", true); return; }
+if (!isPasswordRecoveryMode && currentUser && currentUser.pin && oldP !== currentUser.pin) { showToast("Hata", "Eski şifre yanlış.", true); return; }
 
 showToast("Güncelleniyor...", "Şifre kaydediliyor...");
-
 try {
 const { error } = await _supabase.auth.updateUser({ password: newP });
-if (error) {
-showToast("Hata", error.message, true);
-return;
-}
-
+if (error) { showToast("Hata", error.message, true); return; }
 if (currentUser) {
 let uObj = systemUsers.find(u => u.username === currentUser.username && u.company === currentUser.company);
-if (uObj) { 
-uObj.pin = newP; 
-await saveUsersToCloud(); 
-currentUser.pin = newP; 
-try { localStorage.setItem('sys_logged_user', JSON.stringify(currentUser)); } catch(e){} 
+if (uObj) { uObj.pin = newP; await saveUsersToCloud(); currentUser.pin = newP; try { localStorage.setItem('sys_logged_user', JSON.stringify(currentUser)); } catch(e){} }
 }
-}
-
-closeModal('passwordModal');
-closePasswordModal();
-showToast("Başarılı", "Şifre başarıyla güncellendi.");
-} catch(err) {
-showToast("Hata", "Şifre güncellenirken hata oluştu.", true);
-}
-}
-
-function openAdminChangeUserPinModal(uname) {
-let targetInp = document.getElementById('targetUsernameToChangePin');
-if (targetInp) targetInp.value = uname;
-let titleEl = document.getElementById('adminModalTitle');
-if (titleEl) titleEl.textContent = `🔑 "${uname}" Şifresi`;
-let nPin = document.getElementById('adminNewPinInput');
-if (nPin) nPin.value = '';
-let nPinC = document.getElementById('adminNewPinConfirmInput');
-if (nPinC) nPinC.value = '';
-openModal('adminChangeUserPinModal');
-}
-function closeAdminChangeUserPinModal() {}
-async function saveAdminChangedUserPin() {
-let targetUname = document.getElementById('targetUsernameToChangePin').value;
-let newPin = document.getElementById('adminNewPinInput').value.trim();
-let newPinConf = document.getElementById('adminNewPinConfirmInput').value.trim();
-if (!newPin || newPin !== newPinConf || newPin.length < 3) { showToast("Hata", "Şifre en az 3 hane olmalı.", true); return; }
-let targetUser = systemUsers.find(u => u.username.toLowerCase() === targetUname.toLowerCase() && u.company === currentCompany);
-if (targetUser) { targetUser.pin = newPin; await saveUsersToCloud(); closeModal('adminChangeUserPinModal'); closeAdminChangeUserPinModal(); showToast("Başarılı", "Şifre değiştirildi."); }
+closeModal('passwordModal'); closePasswordModal();
+showToast("Başarılı", "Şifre güncellendi.");
+} catch(err) { showToast("Hata", "Hata oluştu.", true); }
 }
 
 async function verifyLogin() {
@@ -3047,54 +2875,21 @@ let val = await getDocData("global_users");
 if (val && val.list) systemUsers = val.list;
 
 let foundUser = systemUsers.find(u => u.username.toLowerCase() === usernameInput);
-if (!foundUser) { 
-showToast("Hata", "Kullanıcı adı veya şifre yanlış.", true); 
-return; 
-}
+if (!foundUser) { showToast("Hata", "Kullanıcı adı veya şifre yanlış.", true); return; }
+if (foundUser.active === false) { showToast("Pasif", "Hesap devre dışı bırakılmış.", true); return; }
 
-if (foundUser.active === false) { 
-showToast("Pasif", "Hesap devre dışı bırakılmış.", true); 
-return; 
-}
-
-if (foundUser.pin && foundUser.pin === pinInput) {
-proceedLogin(foundUser);
-return;
-}
+if (foundUser.pin && foundUser.pin === pinInput) { proceedLogin(foundUser); return; }
 
 if (foundUser.email) {
 try {
-const { data: authData, error: authError } = await _supabase.auth.signInWithPassword({
-email: foundUser.email,
-password: pinInput
-});
-
-if (authError) {
-let errLower = authError.message.toLowerCase();
-if (errLower.includes("email not confirmed") || errLower.includes("unconfirmed")) {
-showToast("Onay Bekleniyor", "Lütfen önce e-postanıza gönderilen onay linkine tıklayın.", true);
-return;
-}
-showToast("Hata", "Kullanıcı adı veya şifre yanlış.", true);
-return;
-}
-
-if (!authData.user || !authData.user.email_confirmed_at) {
-await _supabase.auth.signOut();
-showToast("Onaylanmamış E-posta", "Lütfen önce gelen kutunuzdaki linke tıklayın. Gelmediyse 'Onay Gelmedi mi?'ye tıklayın.", true);
-return;
-}
-
+const { data: authData, error: authError } = await _supabase.auth.signInWithPassword({ email: foundUser.email, password: pinInput });
+if (authError) { showToast("Hata", "Kullanıcı adı veya şifre yanlış.", true); return; }
 foundUser.pin = pinInput;
 proceedLogin(foundUser);
 return;
-} catch (e) {
-showToast("Hata", "Giriş doğrulaması yapılamadı.", true);
-return;
+} catch (e) { showToast("Hata", "Giriş doğrulanamadı.", true); return; }
 }
-}
-
-showToast("Hata", "Kullanıcı adı veya şifre yanlış.", true);
+showToast("Hata", "Bilgiler hatalı.", true);
 }
 
 async function proceedLogin(foundUser) {
@@ -3107,7 +2902,7 @@ appTitleText = `📦 ${currentCompany}`;
 updateAppTitleUI();
 await initCompanyData(currentCompany);
 
-resetInactivityTimer(); // Hareketsizlik sayacını başlat
+resetInactivityTimer();
 
 let layoutContainer = document.getElementById('appLayoutContainer');
 if (layoutContainer) layoutContainer.classList.add('logged-in-layout');
@@ -3130,16 +2925,11 @@ let superCard = document.getElementById('superAdminGlobalCard');
 if (currentUser.username.toLowerCase() === 'admin') { 
 if (superCard) superCard.style.display = 'block'; 
 renderSuperAdminPanel(); 
-} else {
-if (superCard) superCard.style.display = 'none';
-}
+} else { if (superCard) superCard.style.display = 'none'; }
 
 let adminCards = document.querySelectorAll('.admin-only-card');
-if (currentUser.role === 'admin') {
-adminCards.forEach(card => card.style.display = 'block');
-} else {
-adminCards.forEach(card => card.style.display = 'none');
-}
+if (currentUser.role === 'admin') { adminCards.forEach(c => c.style.display = 'block'); }
+else { adminCards.forEach(c => c.style.display = 'none'); }
 
 let newProdBtn = document.getElementById('newProductBtn');
 let orderStockBtn = document.getElementById('orderStockBtn');
@@ -3179,10 +2969,7 @@ setTimeout(() => {
 }, 300);
 
 let lastPage = 'stoklar';
-try {
-let savedPage = sessionStorage.getItem('sys_active_page');
-if (savedPage) lastPage = savedPage;
-} catch(e) {}
+try { let savedPage = sessionStorage.getItem('sys_active_page'); if (savedPage) lastPage = savedPage; } catch(e) {}
 switchPage(lastPage);
 
 if (!sessionStorage.getItem('sys_welcome_shown')) {
@@ -3201,12 +2988,10 @@ if (displayEl) { let p = dateStr.split('-'); displayEl.textContent = `${p[2]}.${
 function logout() {
 isLogged = false; currentUser = null; currentCompany = null;
 clearTimeout(inactivityTimer);
-
 let botBtn = document.getElementById('floatingBotBtn');
 if (botBtn) botBtn.style.display = 'none';
 let botWin = document.getElementById('botChatWindow');
 if (botWin) botWin.style.display = 'none';
-
 try { 
 localStorage.removeItem('sys_logged_user'); 
 localStorage.removeItem('sys_cached_company');
@@ -3214,7 +2999,6 @@ sessionStorage.removeItem('sys_welcome_shown');
 sessionStorage.removeItem('sys_active_page'); 
 _supabase.auth.signOut();
 } catch(e){}
-
 location.reload();
 }
 
@@ -3232,7 +3016,6 @@ if (dynRows) dynRows.innerHTML = '';
 addDynamicProductInputRow();
 openModal('multiProductModal');
 }
-
 function closeMultiProductModal() {}
 
 function checkMultiGroupSelection(el) { 
@@ -3240,18 +3023,11 @@ let w = document.getElementById('multiNewGroupWrapper');
 if (w) {
 if (el.value === '__NEW__') {
 w.style.display = 'block';
-setTimeout(() => {
-let newCatInput = document.getElementById('multiNewGroupInput');
-if (newCatInput) { newCatInput.focus(); newCatInput.select(); }
-}, 100);
+setTimeout(() => { let newCatInput = document.getElementById('multiNewGroupInput'); if (newCatInput) { newCatInput.focus(); newCatInput.select(); } }, 100);
 } else {
 w.style.display = 'none';
 let newCatInput = document.getElementById('multiNewGroupInput');
 if (newCatInput) newCatInput.value = '';
-setTimeout(() => {
-let firstProdInput = document.querySelector('.dyn-prod-name');
-if (firstProdInput) { firstProdInput.focus(); firstProdInput.select(); }
-}, 100);
 }
 }
 }
@@ -3323,8 +3099,7 @@ container.innerHTML = systemUsers.filter(u => u.company === currentCompany).map(
 function openNewUserModal() { 
 let nInp = document.getElementById('newUsernameInput');
 let pInp = document.getElementById('newUserPinInput');
-if (nInp) nInp.value = ''; 
-if (pInp) pInp.value = ''; 
+if (nInp) nInp.value = ''; if (pInp) pInp.value = ''; 
 openModal('newUserModal');
 }
 function closeNewUserModal() {}
@@ -3347,7 +3122,6 @@ await saveUsersToCloud(); renderUserManagement(); showToast("Başarılı", "Sili
 }
 
 function switchDepot(depotName) { currentViewDepot = depotName; updateDepotUI(); renderStock(); }
-
 const debouncedRenderStock = debounce(() => { renderStock(); }, 150);
 
 function renderStock() {
@@ -3356,7 +3130,6 @@ updateDepotUI();
 let rawSearch = document.getElementById('searchInput')?.value || '';
 let searchWords = turkishNormalize(rawSearch.trim()).split(/\s+/);
 let html = '', criticalItems = [];
-
 let hiddenCats = (hiddenCategoriesPerDepot[currentViewDepot] || []);
 
 products.forEach(p => {
@@ -3383,7 +3156,7 @@ html += `
 });
 
 let stockListEl = document.getElementById('stockList');
-if (stockListEl) stockListEl.innerHTML = html || '<div style="text-align:center; color:var(--muted); padding:10px;">Ürün bulunamadı. Yönetimden Excel ile ürün yükleyebilirsiniz.</div>';
+if (stockListEl) stockListEl.innerHTML = html || '<div style="text-align:center; color:var(--muted); padding:10px;">Ürün bulunamadı.</div>';
 
 let alertCard = document.getElementById('criticalAlertCard');
 let alertList = document.getElementById('criticalAlertList');
@@ -3435,10 +3208,7 @@ if (!startVal || !endVal) return;
 let startDate = new Date(startVal); startDate.setHours(0,0,0,0);
 let endDate = new Date(endVal); endDate.setHours(23,59,59,999);
 
-if (startDate > endDate) {
-if(showNotif) showToast("Hata", "Başlangıç tarihi bitiş tarihinden büyük olamaz.", true);
-return;
-}
+if (startDate > endDate) { if(showNotif) showToast("Hata", "Başlangıç bitişten büyük olamaz.", true); return; }
 
 let filteredWithIndex = transactions.map((t, idx) => ({ t, idx })).filter(item => {
 let dateParts = item.t.date.split(' ')[0].split('.');
@@ -3474,19 +3244,17 @@ let isAdmin = currentUser && currentUser.role === 'admin';
 let repList = document.getElementById('reportList');
 if (repList) {
 if (currentUser && currentUser.role === 'görüntüleyen') {
-repList.innerHTML = '<div style="font-size:11px; color:var(--muted); text-align:center; padding:8px;">İşlem listesini görüntüleme yetkiniz yok.</div>';
+repList.innerHTML = '<div style="font-size:11px; color:var(--muted); text-align:center; padding:8px;">Yetkiniz yok.</div>';
 } else {
-repList.innerHTML = filteredWithIndex.length === 0 ? '<div style="font-size:11px; color:var(--muted); text-align:center; padding:8px;">Bu tarih aralığında işlem yok.</div>' : filteredWithIndex.map(item => `
+repList.innerHTML = filteredWithIndex.length === 0 ? '<div style="font-size:11px; color:var(--muted); text-align:center; padding:8px;">İşlem yok.</div>' : filteredWithIndex.map(item => `
 <div style="display:flex; justify-content:space-between; padding:6px 8px; border:1.5px solid var(--border); border-radius:8px; background:var(--card); align-items:center;">
-<div style="flex:1; overflow:hidden; padding-right:5px;"><b style="font-size:11px;">${item.t.prodName || item.t.name || 'Bilinmeyen Ürün'}</b> <span style="font-size:8px; color:var(--primary);">[${item.t.depot}]</span><div style="font-size:9px; color:var(--muted);">${item.t.date} ${item.t.desc ? ' • '+item.t.desc : ''}</div></div>
+<div style="flex:1; overflow:hidden; padding-right:5px;"><b style="font-size:11px;">${item.t.prodName || item.t.name || 'Ürün'}</b> <span style="font-size:8px; color:var(--primary);">[${item.t.depot}]</span><div style="font-size:9px; color:var(--muted);">${item.t.date} ${item.t.desc ? ' • '+item.t.desc : ''}</div></div>
 <div style="display:flex; align-items:center; gap:4px;"><div style="font-weight:900; font-size:12px; color:${item.t.type === 'GİRİŞ' || item.t.type === 'GIRIS' ? 'var(--success)' : (item.t.type === 'TRANSFER' ? 'var(--transfer)' : 'var(--danger)')};">${item.t.type === 'GİRİŞ' || item.t.type === 'GIRIS' ? '+' : (item.t.type === 'TRANSFER' ? '⇄' : '-')}${item.t.qty}</div>${isAdmin ? `<button class="btn btn-danger btn-sm" style="height:24px; padding:0 6px; font-size:9px;" onclick="showCustomConfirm('İşlem silinsin mi?', () => deleteTransaction(${item.idx}))">🗑️</button>` : ''}</div>
 </div>
 `).join('');
 }
 }
-if (showNotif) {
-showToast("Başarılı", "Rapor getirildi.");
-}
+if (showNotif) { showToast("Başarılı", "Rapor getirildi."); }
 }
 
 function exportConsumptionExcel() {
@@ -3494,14 +3262,12 @@ if (!isLogged) return;
 let consumptionMap = {};
 lastFilteredTransactions.forEach(item => {
 if (item.t.type === 'ÇIKIŞ' || item.t.type === 'CIKIS') {
-let name = item.t.prodName || item.t.name || 'Bilinmeyen Ürün';
+let name = item.t.prodName || item.t.name || 'Ürün';
 consumptionMap[name] = roundNum((consumptionMap[name] || 0) + parseInputFloat(item.t.qty));
 }
 });
-
 let sortedConsumed = Object.entries(consumptionMap).sort((a,b) => b[1] - a[1]);
-if (sortedConsumed.length === 0) { showToast("Bilgi", "Çıktı alınacak tüketim verisi yok."); return; }
-
+if (sortedConsumed.length === 0) { showToast("Bilgi", "Veri yok."); return; }
 let groupedByCat = {};
 sortedConsumed.forEach(([name, qty]) => {
 let prod = products.find(p => p.name.toLowerCase() === name.toLowerCase());
@@ -3509,60 +3275,31 @@ let cat = prod ? prod.group : "DİĞER";
 if (!groupedByCat[cat]) groupedByCat[cat] = [];
 groupedByCat[cat].push({ name, qty });
 });
-
-let header = ["Kategori", "Ürün Adı", "Toplam Çıkış Miktarı"];
+let header = ["Kategori", "Ürün Adı", "Toplam Çıkış"];
 let rowsData = [header];
-
 Object.keys(groupedByCat).sort().forEach(cat => {
 rowsData.push([`--- ${cat} ---`, "", ""]);
-groupedByCat[cat].forEach(item => {
-rowsData.push(["", item.name, item.qty]);
+groupedByCat[cat].forEach(item => { rowsData.push(["", item.name, item.qty]); });
 });
-});
-
 let ws = {};
 let range = { s: { c: 0, r: 0 }, e: { c: header.length - 1, r: rowsData.length - 1 } };
-
 rowsData.forEach((row, rIdx) => {
 let isHeader = (rIdx === 0);
 let isCategory = (row[0] && String(row[0]).startsWith('---'));
-
 row.forEach((cellVal, cIdx) => {
 let cellRef = XLSX.utils.encode_cell({ r: rIdx, c: cIdx });
 let cell = { v: cellVal, t: typeof cellVal === 'number' ? 'n' : 's' };
-
-if (isHeader) {
-cell.s = {
-font: { bold: true, color: { rgb: "FFFFFF" } },
-fill: { fgColor: { rgb: "2563EB" } },
-alignment: { horizontal: "center", vertical: "center" }
-};
-} else if (isCategory) {
-cell.s = {
-font: { bold: true, color: { rgb: "1E3A8A" } },
-fill: { fgColor: { rgb: "E0E7FF" } },
-alignment: { horizontal: "left", vertical: "center" }
-};
-} else {
-cell.s = {
-font: { color: { rgb: "0F172A" } },
-alignment: { horizontal: cIdx === 2 ? "right" : "left", vertical: "center" }
-};
-}
+if (isHeader) { cell.s = { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "2563EB" } }, alignment: { horizontal: "center" } }; }
+else if (isCategory) { cell.s = { font: { bold: true, color: { rgb: "1E3A8A" } }, fill: { fgColor: { rgb: "E0E7FF" } }, alignment: { horizontal: "left" } }; }
 ws[cellRef] = cell;
 });
 });
-
 ws['!ref'] = XLSX.utils.encode_range(range);
-
-let colWidths = [25, 30, 20];
-ws['!cols'] = colWidths.map(w => ({ wch: w }));
-
 let wb = XLSX.utils.book_new();
-XLSX.utils.book_append_sheet(wb, ws, "Tuketilen_Urunler");
+XLSX.utils.book_append_sheet(wb, ws, "Tuketilenler");
 let trNow = getTurkeyDateNow();
-XLSX.writeFile(wb, `Tuketilen_Urunler_${trNow.day}.${trNow.month}.${trNow.year}.xlsx`);
-showToast("Başarılı", "Kategorili tüketim Excel raporu indirildi.");
+XLSX.writeFile(wb, `Tuketilenler_${trNow.day}.${trNow.month}.${trNow.year}.xlsx`);
+showToast("Başarılı", "Excel indirildi.");
 }
 
 function exportConsumptionPdf() {
@@ -3570,14 +3307,12 @@ if (!isLogged) return;
 let consumptionMap = {};
 lastFilteredTransactions.forEach(item => {
 if (item.t.type === 'ÇIKIŞ' || item.t.type === 'CIKIS') {
-let name = item.t.prodName || item.t.name || 'Bilinmeyen Ürün';
+let name = item.t.prodName || item.t.name || 'Ürün';
 consumptionMap[name] = roundNum((consumptionMap[name] || 0) + parseInputFloat(item.t.qty));
 }
 });
-
 let sortedConsumed = Object.entries(consumptionMap).sort((a,b) => b[1] - a[1]);
-if (sortedConsumed.length === 0) { showToast("Bilgi", "Çıktı alınacak tüketim verisi yok."); return; }
-
+if (sortedConsumed.length === 0) { showToast("Bilgi", "Veri yok."); return; }
 let groupedByCat = {};
 sortedConsumed.forEach(([name, qty]) => {
 let prod = products.find(p => p.name.toLowerCase() === name.toLowerCase());
@@ -3585,45 +3320,21 @@ let cat = prod ? prod.group : "DİĞER";
 if (!groupedByCat[cat]) groupedByCat[cat] = [];
 groupedByCat[cat].push({ name, qty });
 });
-
-let startVal = document.getElementById('startDate').value;
-let endVal = document.getElementById('endDate').value;
-let dateRangeStr = "";
-if (startVal && endVal) {
-let pStart = startVal.split('-');
-let pEnd = endVal.split('-');
-dateRangeStr = `Tarih Araligi: ${pStart[2]}.${pStart[1]}.${pStart[0]} - ${pEnd[2]}.${pEnd[1]}.${pEnd[0]}`;
-} else {
-let trNow = getTurkeyDateNow();
-dateRangeStr = `Tarih: ${trNow.shortDate}`;
-}
-
 const { jsPDF } = window.jspdf;
 let doc = new jsPDF('portrait', 'mm', 'a4');
 let trNow = getTurkeyDateNow();
-
 doc.setFont("helvetica", "bold"); doc.setFontSize(12);
-doc.text(cleanTurkishChars(`${currentCompany || 'DEPO'} - TÜKETİLEN ÜRÜNLER ÖZETİ`), 14, 12);
-doc.setFontSize(8); doc.setFont("helvetica", "normal");
-doc.text(cleanTurkishChars(dateRangeStr), 14, 17);
-
-let headRow = ['Kategori', 'Urun Adi', 'Toplam Cikis Miktari'];
+doc.text(cleanTurkishChars(`${currentCompany || 'DEPO'} - TÜKETİLENLER`), 14, 12);
+let headRow = ['Kategori', 'Urun Adi', 'Toplam Cikis'];
 let tableData = [];
-
 Object.keys(groupedByCat).sort().forEach(cat => {
 tableData.push([`--- ${cleanTurkishChars(cat)} ---`, '', '']);
-groupedByCat[cat].forEach(item => {
-tableData.push(['', cleanTurkishChars(item.name), item.qty]);
+groupedByCat[cat].forEach(item => { tableData.push(['', cleanTurkishChars(item.name), item.qty]); });
 });
-});
-
 doc.autoTable({
-startY: 22,
-head: [headRow],
-body: tableData,
-theme: 'grid',
-headStyles: { fillColor: [37, 99, 235], fontSize: 8, cellPadding: 2, fontStyle: 'bold' },
-styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+startY: 18, head: [headRow], body: tableData, theme: 'grid',
+headStyles: { fillColor: [37, 99, 235], fontSize: 8, fontStyle: 'bold' },
+styles: { fontSize: 8, cellPadding: 2 },
 didParseCell: function (data) {
 let rowVal = data.row.raw[0];
 if (rowVal && String(rowVal).startsWith('---')) {
@@ -3631,27 +3342,18 @@ data.cell.colSpan = headRow.length;
 data.cell.styles.fillColor = [224, 231, 255];
 data.cell.styles.textColor = [30, 58, 138];
 data.cell.styles.fontStyle = 'bold';
-data.cell.styles.halign = 'left';
 }
-},
-columnStyles: {
-0: { cellWidth: 50 },
-1: { cellWidth: 'auto' },
-2: { cellWidth: 45, halign: 'right' }
-},
-margin: { left: 14, right: 14, top: 22, bottom: 10 }
+}
 });
-
-doc.save(`Tuketilen_Urunler_${trNow.day}.${trNow.month}.${trNow.year}.pdf`);
-showToast("Başarılı", "Kategorili tüketim PDF raporu indirildi.");
+doc.save(`Tuketilenler_${trNow.day}.${trNow.month}.${trNow.year}.pdf`);
+showToast("Başarılı", "PDF indirildi.");
 }
 
 async function deleteTransaction(index) {
 if (!currentUser || currentUser.role !== 'admin') return;
 transactions.splice(index, 1);
 await saveTransactionsToCloud();
-renderStock();
-filterReport();
+renderStock(); filterReport();
 showToast("Silindi", "İşlem kaldırıldı.");
 }
 
@@ -3704,15 +3406,11 @@ let pSearch = document.getElementById('productSearchInput');
 let pSelect = document.getElementById('prodSelect');
 let qInput = document.getElementById('qtyInput');
 let listEl = document.getElementById('productSuggestionsList');
-
 if (pSearch) pSearch.value = prodName;
 if (pSelect) pSelect.value = prodId;
 syncMaxLimit();
 if (listEl) listEl.style.display = 'none';
-if (qInput) {
-qInput.focus();
-qInput.select();
-}
+if (qInput) { qInput.focus(); qInput.select(); }
 }
 
 document.addEventListener('click', function(e) {
@@ -3721,95 +3419,25 @@ let listEl = document.getElementById('productSuggestionsList');
 if (searchBox && listEl && !searchBox.contains(e.target) && !listEl.contains(e.target)) listEl.style.display = 'none';
 });
 
-_supabase.auth.onAuthStateChange(async (event, session) => {
-if (event === "PASSWORD_RECOVERY") {
-isPasswordRecoveryMode = true;
-openPasswordModal();
-showToast("Şifre Sıfırlama", "Lütfen yeni şifrenizi girin.");
-}
-});
-
-initTheme();
-initCloudGlobalData();
-setTxType('ÇIKIŞ');
-
-document.addEventListener("DOMContentLoaded", function() {
-let savedSession = localStorage.getItem('sys_logged_user');
-if (savedSession) {
-try {
-let userObj = JSON.parse(savedSession);
-if (userObj && userObj.username) {
-getDocData("global_users").then((val) => {
-if (val && val.list) {
-systemUsers = val.list;
-let matched = systemUsers.find(u => u.username.toLowerCase() === userObj.username.toLowerCase() && u.company === userObj.company);
-if (matched && matched.active !== false) {
-  proceedLogin(matched);
-  return;
-}
-}
-let loginBox = document.getElementById('loginBoxCard');
-if (loginBox) loginBox.style.display = 'block';
-}).catch(() => {
-let loginBox = document.getElementById('loginBoxCard');
-if (loginBox) loginBox.style.display = 'block';
-});
-} else {
-let loginBox = document.getElementById('loginBoxCard');
-if (loginBox) loginBox.style.display = 'block';
-}
-} catch(e) {
-localStorage.removeItem('sys_logged_user');
-let loginBox = document.getElementById('loginBoxCard');
-if (loginBox) loginBox.style.display = 'block';
-}
-} else {
-let loginBox = document.getElementById('loginBoxCard');
-if (loginBox) loginBox.style.display = 'block';
-}
-});
- function toggleBotWindow() {
-    if (!isLogged) {
-        showToast("Hata", "Önce giriş yapmalısınız.", true);
-        return;
-    }
-    let win = document.getElementById('botChatWindow');
-    win.style.display = win.style.display === 'none' || win.style.display === '' ? 'flex' : 'none';
-    if (win.style.display === 'flex') {
-        document.getElementById('botCommandInput').focus();
-    }
-}
-
-// Tüm tıklama ve enter olaylarını güvenli bir şekilde bağlıyoruz
+// 🤖 BOT GÜVENLİ OLAY BAĞLAYICISI (BURADA BAŞLIYOR)
 document.addEventListener("DOMContentLoaded", () => {
     let floatBtn = document.getElementById('floatingBotBtn');
     let closeBtn = document.getElementById('botCloseBtn');
     let sendBtn = document.getElementById('botSendBtn');
     let cmdInput = document.getElementById('botCommandInput');
 
-    if (floatBtn) {
-        floatBtn.addEventListener('click', toggleBotWindow);
-    }
-    if (closeBtn) {
-        closeBtn.addEventListener('click', toggleBotWindow);
-    }
-    if (sendBtn) {
-        sendBtn.addEventListener('click', sendCommandToBot);
-    }
+    if (floatBtn) floatBtn.addEventListener('click', toggleBotWindow);
+    if (closeBtn) closeBtn.addEventListener('click', toggleBotWindow);
+    if (sendBtn) sendBtn.addEventListener('click', sendCommandToBot);
     if (cmdInput) {
         cmdInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                sendCommandToBot();
-            }
+            if (e.key === 'Enter') sendCommandToBot();
         });
     }
 });
 
 function toggleBotWindow() {
-    if (!isLogged) {
-        showToast("Hata", "Önce giriş yapmalısınız.", true);
-        return;
-    }
+    if (!isLogged) { showToast("Hata", "Önce giriş yapmalısınız.", true); return; }
     let win = document.getElementById('botChatWindow');
     if (!win) return;
     win.style.display = (win.style.display === 'none' || win.style.display === '') ? 'flex' : 'none';
@@ -3875,10 +3503,6 @@ async function sendCommandToBot() {
     }
 }
 </script>
-<!-- 🤖 YÜZEYDE DURAN BOT BUTONU (GİZLİ VE YENİ İKONLU) -->
-<button id="floatingBotBtn" style="display:none; position:fixed; bottom:70px; right:15px; border-radius:50%; width:60px; height:60px; background:var(--card); border:2px solid var(--primary); box-shadow:var(--shadow-lg); z-index:1000; cursor:pointer; align-items:center; justify-content:center; transition:transform 0.2s; padding:8px;" onclick="toggleBotWindow()">
-    <img src="bot.png" alt="Stok Asistanı" style="width:100%; height:100%; object-fit:contain;">
-</button>
 
 <!-- 🤖 YÜZEYDE DURAN BOT BUTONU -->
 <button id="floatingBotBtn" style="display:none; position:fixed; bottom:70px; right:15px; border-radius:50%; width:60px; height:60px; background:var(--card); border:2px solid var(--primary); box-shadow:var(--shadow-lg); z-index:1000; cursor:pointer; align-items:center; justify-content:center; transition:transform 0.2s; padding:8px;">
