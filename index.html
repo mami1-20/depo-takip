@@ -3802,18 +3802,24 @@ async function sendCommandToBot() {
     <img src="bot.png" alt="Stok Asistanı" style="width:100%; height:100%; object-fit:contain;">
 </button>
 
-<!-- 🤖 BOT SOHBET PENCERESİ -->
+<!-- 🤖 BOT SOHBET PENCERESİ (KURUMSAL VERSİYON) -->
 <div id="botChatWindow" class="card" style="display:none; position:fixed; bottom:135px; right:15px; width:320px; max-width:90%; height:380px; z-index:1001; flex-direction:column; box-shadow:var(--shadow-lg); border:2px solid var(--primary);">
-    <div class="modal-header" style="background:var(--primary); color:#fff; padding:10px; border-radius:10px 10px 0 0; margin:-12px -12px 10px -12px;">
-        <b style="font-size:13px;">🤖 Stok Asistanı</b>
+    <div class="modal-header" style="background:var(--primary); color:#fff; padding:10px; border-radius:10px 10px 0 0; margin:-12px -12px 10px -12px; display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:8px;">
+            <img src="bot.png" alt="Bot" style="width:20px; height:20px; filter:brightness(0) invert(1);">
+            <b style="font-size:13px;" id="kurumsalBotBaslik">Akıllı Stok Asistanı</b>
+        </div>
         <button class="btn btn-sm" style="background:transparent; color:#fff; border:none; font-size:16px;" onclick="toggleBotWindow()">×</button>
     </div>
     <div id="botChatHistory" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px; font-size:11px; margin-bottom:10px; padding-right:5px;">
-        <div style="background:rgba(37,99,235,0.1); padding:8px; border-radius:8px; align-self:flex-start; max-width:85%;">Merhaba patron! Ben hazırım, ne işlem yapıyoruz?</div>
+        <div style="background:rgba(37,99,235,0.1); border:1px solid rgba(37,99,235,0.2); padding:10px; border-radius:8px; align-self:flex-start; max-width:85%; display:flex; gap:8px; align-items:flex-start;">
+            <img src="bot.png" style="width:18px; height:18px; flex-shrink:0;">
+            <div style="line-height:1.4;">Sisteme hoş geldiniz. Ben Akıllı Stok Asistanı, size nasıl yardımcı olabilirim?</div>
+        </div>
     </div>
     <div style="display:flex; gap:5px; border-top:1px solid var(--border); padding-top:10px;">
-        <input type="text" id="botCommandInput" placeholder="Örn: ofisten bara 2 tuborg aktar..." style="flex:1; height:36px; border-radius:8px; border:1px solid var(--border); padding:0 10px; font-size:11px;" onkeypress="if(event.key==='Enter') sendCommandToBot()">
-        <button class="btn btn-success" style="height:36px; border-radius:8px; padding:0 12px;" onclick="sendCommandToBot()">Gönder</button>
+        <input type="text" id="botCommandInput" placeholder="İşlem komutunuzu yazın..." style="flex:1; height:36px; border-radius:8px; border:1px solid var(--border); padding:0 10px; font-size:11px;" onkeypress="if(event.key==='Enter') sendCommandToBot()">
+        <button class="btn btn-success" style="height:36px; border-radius:8px; padding:0 12px;" onclick="sendCommandToBot()">İlet</button>
     </div>
 </div>
 </body>
