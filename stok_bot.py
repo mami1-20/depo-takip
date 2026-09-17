@@ -4,9 +4,10 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # ==========================================
-# ⚙️ BOT AYARLARI VE BULUT BAĞLANTISI
+# ⚙️ BOT AYARLARI
 # ==========================================
 HEDEF_FIRMA = "LAVİN OTEL"
+
 SUPABASE_URL = "https://qckafgpwbcapskunrwjm.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFja2FmZ3B3YmNhcHNrdW5yd2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTEyOTEsImV4cCI6MjEwNTA2NzI5MX0.sHQIWHCeifTCKAxV_fI7WE1esxoB1XK_bkGLj9D1NLQ"
 
@@ -38,227 +39,382 @@ def set_cloud_db(target_key, val_dict):
         urllib.request.urlopen(req, timeout=5)
     except: pass
 
-def firma_verilerini_getir(firma_adi):
-    urun_data = get_cloud_db(f"company_{firma_adi.upper()}_products").get("list", [])
-    cfg_data = get_cloud_db(f"company_{firma_adi.upper()}_config")
-    
-    depolar = set(d.upper() for d in cfg_data.get("depots", [])) if isinstance(cfg_data, dict) and "depots" in cfg_data else set()
-    for p in urun_data: depolar.update(k.upper() for k in p.get("openings", {}).keys())
-    if not depolar: depolar.update(["BAR", "OFİS"])
-    
-    return urun_data, sorted(list(depolar))
+def firma_ve_urunleri_getir(firma_adi):
+    try:
+        urun_data = get_cloud_db(f"company_{firma_adi.upper()}_products")
+        products = urun_data.get("list", [])
+        if products: return firma_adi.upper(), products
+    except: pass
+    return firma_adi.upper(), []
 
-def sayi_formatla(num): 
-    return int(num) if float(num) % 1 == 0 else float(num)
+CURRENT_COMPANY, PRODUCTS = firma_ve_urunleri_getir(HEDEF_FIRMA)
 
-def depo_stok_hesapla(urun_id, depo, products, txs):
-    nd = depo.upper()
-    acilis = sum(float(v) for p in products if p["id"] == urun_id for k, v in p.get("openings", {}).items() if k.upper() == nd)
-    in_q = sum(float(t.get("qty", 0)) for t in txs if t.get("prodId") == urun_id and t.get("depot", "").upper() == nd and t.get("type") in ["GİRİŞ", "GIRIS"])
-    out_q = sum(float(t.get("qty", 0)) for t in txs if t.get("prodId") == urun_id and t.get("depot", "").upper() == nd and t.get("type") in ["ÇIKIŞ", "CIKIS"])
-    return acilis + in_q - out_q
+# --- TÜRKÇE VE YAZIM DÜZELTME MOTORU ---
+def tr_temizle(metin):
+    if not metin: return ""
+    return metin.replace('İ','i').replace('I','i').replace('ı','i').replace('Ş','s').replace('ş','s').replace('Ü','u').replace('ü','u').replace('Ö','o').replace('ö','o').replace('Ç','c').replace('ç','c').replace('Ğ','g').replace('ğ','g').lower().strip()
 
-# ==========================================
-# 🧠 NLP MOTORU VE ZEKİ EŞLEŞTİRME
-# ==========================================
-SES_DUZELTMELER = {"cars berk": "carlsberg", "karsberg": "carlsberg", "twork": "tuborg", "tughborg": "tuborg", "tüp org": "tuborg", "borç": "tuborg", "fs": "efes", "redbıl": "redbull", "ifise": "ofise", "bafdan": "bardan"}
-SAYI_CEVIRICI = {"bir": "1", "iki": "2", "üç": "3", "üc": "3", "dört": "4", "beş": "5", "altı": "6", "yedi": "7", "sekiz": "8", "dokuz": "9", "on": "10", "yarım": "0.5"}
+SES_DUZELTMELER = {"cars berk": "carlsberg", "karsberg": "carlsberg", "şarj bek": "carlsberg", "twork": "tuborg", "tughborg": "tuborg", "tüp org": "tuborg", "borç": "tuborg", "fs": "efes", "efs": "efes", "f20": "efes", "redbıl": "redbull", "ifise": "ofise", "ifis": "ofis", "ofiten": "ofisten", "bafdan": "bardan", "bafda": "barda"}
+SAYI_CEVIRICI = {"bir": "1", "iki": "2", "üç": "3", "üc": "3", "dört": "4", "dort": "4", "beş": "5", "bes": "5", "altı": "6", "alti": "6", "yedi": "7", "sekiz": "8", "dokuz": "9", "on": "10"}
+KATEGORILER = {"bira": ["tuborg", "efes", "carlsberg"], "rakı": ["yeni rakı", "yeni raki", "efe gold", "beylerbeyi", "tekirdağ"], "şarap": ["senfoni", "trio", "nodus", "rozebella"], "votka": ["istanblue", "absolut"], "viski": ["chivas", "jack daniels"], "tekila": ["olmega"], "cin": ["gordons"], "içecek": ["redbull"]}
+MARKALAR = ["yeni rakı", "yeni raki", "efe gold", "beylerbeyi göbek", "beylerbeyi", "tekirdağ altın seri", "chivas regal", "chivas", "jack daniels", "senfoni", "trio", "nodus", "rozebella", "istanblue", "absolut", "olmega", "gordons", "tuborg", "efes", "carlsberg", "redbull"]
 
 def metni_temizle(metin):
-    metin = metin.replace('İ','i').replace('I','i').lower().strip()
+    metin = tr_temizle(metin)
+    if metin.endswith(" bir"): metin = metin[:-4] + " bira"
+    metin = metin.replace("tane bir ", "tane bira ")
     for yanlis, dogru in SES_DUZELTMELER.items(): metin = re.sub(rf'\b{yanlis}\b', dogru, metin)
     for kelime, rakam in SAYI_CEVIRICI.items(): metin = re.sub(rf'\b{kelime}\b', rakam, metin)
     return metin
 
-def dinamik_hacim_havuzu_olustur(products):
-    hacimler = set()
-    for p in products:
-        bulunanlar = re.findall(r'\b(\d+(?:[\.,]\d+)?)\b', p.get("name", ""))
-        for b in bulunanlar:
-            b_float = float(b.replace(',', '.'))
-            if 10 <= b_float <= 200: hacimler.add(b_float)
-    return hacimler
+def boyutlari_gizle(metin):
+    metin = metin.replace("yuzluk", " SIZE100 ").replace("yüzlük", " SIZE100 ").replace("ellilik", " SIZE50 ").replace("yetmislik", " SIZE70 ").replace("yetmişlik", " SIZE70 ")
+    ekler = r"(lik|lık|luk|lük|li|lı|lu|lü|cl|cc)"
+    for size in ["20", "35", "50", "70", "75", "100"]: metin = re.sub(rf"\b{size}\s*{ekler}\b", f" SIZE{size} ", metin)
+    metin = re.sub(rf"\b37[\.,]?5\s*{ekler}\b", " SIZE37 ", metin)
+    rakilar = r"(rakı|raki|efe|gold|beylerbeyi|göbek|gobek|tekirdağ|tekirdag|seri)"
+    for size in ["20", "35", "50", "70", "100"]: metin = re.sub(rf"\b{rakilar}\s+{size}\b", rf"\1 SIZE{size} ", metin)
+    return metin
 
-def nlp_siparis_cozumle(kullanici_metni, products, aktif_depolar):
-    metin = metni_temizle(kullanici_metni)
-    hacim_havuzu = dinamik_hacim_havuzu_olustur(products)
-    
-    islem_turu = "BİLGİ" 
-    if any(w in metin for w in ["ekle", "giris", "artir", "alim", "geldi", "aldim", "yap"]): islem_turu = "GİRİŞ"
-    if any(w in metin for w in ["cikis", "sat", "satis", "sattim", "satti", "satildi", "eksilt", "gitti", "ver", "dus"]): islem_turu = "ÇIKIŞ"
-    if any(w in metin for w in ["aktar", "transfer", "gecir", "gonder", "tasi"]): islem_turu = "TRANSFER"
-    
-    hedef_depo = aktif_depolar[0] if aktif_depolar else "BAR"
-    for depo in aktif_depolar:
-        depo_temiz = depo.lower()
-        if depo_temiz in metin:
-            hedef_depo = depo
-            metin = metin.replace(depo_temiz, "") 
+def boyutlari_gerigetir(metin):
+    return metin.replace("SIZE20", "20 cl").replace("SIZE35", "35 cl").replace("SIZE37", "37.5 cl").replace("SIZE50", "50 cl").replace("SIZE70", "70 cl").replace("SIZE75", "75 cl").replace("SIZE100", "100 cl")
 
-    for w in ["giris", "cikis", "transfer", "ekle", "sat", "yap", "tane", "adet", "satis", "sattim", "satti", "satildi", "eksilt", "gitti", "ver", "dus"]:
-        metin = re.sub(rf'\b{w}\b', '', metin)
+def sayi_formatla(num): return int(num) if float(num) % 1 == 0 else float(num)
 
-    parcalar = re.split(r'\n|,|\bve\b', metin)
-    sepet = []
+# --- TARİH VE STOK MOTORU ---
+def tarih_cozumle(komut):
+    simdi = datetime.datetime.now()
+    if any(w in komut for w in ["dun", "bir gun once"]): return (simdi - datetime.timedelta(days=1)).strftime("%d.%m.%Y %H:%M"), None
+    match_gecen_ay = re.search(r'gecen\s+ayin\s+(\d+)', komut)
+    if match_gecen_ay:
+        hg = int(match_gecen_ay.group(1))
+        yil, ay = simdi.year, simdi.month - 1
+        if ay == 0: ay, yil = 12, yil - 1
+        import calendar
+        _, sg = calendar.monthrange(yil, ay)
+        if hg > sg: return None, f"Geçen ay ({ay}. ay) yalnızca {sg} çekmektedir."
+        return f"{hg:02d}.{ay:02d}.{yil} {simdi.strftime('%H:%M')}", None
+    match_bu_ay = re.search(r'(?:ayin\s+)?(\d+)(?:\'?si|\'?ü|\'?i|\'?u)?', komut)
+    if match_bu_ay and ("ayin" in komut or "tarih" in komut):
+        hg = int(match_bu_ay.group(1))
+        import calendar
+        _, sg = calendar.monthrange(simdi.year, simdi.month)
+        if hg > sg or hg > simdi.day: return None, "Geçersiz gün seçimi yapılmıştır."
+        return f"{hg:02d}.{simdi.month:02d}.{simdi.year} {simdi.strftime('%H:%M')}", None
+    return simdi.strftime("%d.%m.%Y %H:%M"), None
 
-    for parca in parcalar:
-        parca = parca.strip()
-        if len(parca) < 2: continue
+def urun_bul(komut):
+    komut_filtreli = komut
+    for g in ["kaç", "kac", "adet", "tane", "var", "elimizde", "toplam", "ofiste", "barda", "depoda", "sat", "satış", "satis", "sattım", "sattim", "sattı", "satıldı", "ekle", "giriş", "giris", "çıkış", "cikis", "yap", "aktar", "transfer", "gecir", "gonder", "taşı", "tasi", "dun", "gecen", "ayin", "dan", "den", "tan", "ten", "e", "a", "ye", "ya"]:
+        komut_filtreli = re.sub(rf'\b{g}\b', '', komut_filtreli)
+    komut_urun_isim = re.sub(r'\b(\d+(?:[\.,]\d+)?)\b', '', komut_filtreli.replace("'", "").strip()).strip()
+    if len(komut_urun_isim) < 2: return None
+    en_iyi, en_yuksek = None, 0.0
+    for p in PRODUCTS:
+        p_name = tr_temizle(p["name"])
+        skor = SequenceMatcher(None, komut_urun_isim, p_name).ratio() + (sum(1 for kw in [w for w in p_name.split() if len(w) > 1] if kw in komut_urun_isim) * 0.45)
+        if skor > en_yuksek: en_yuksek, en_iyi = skor, p
+    return en_iyi if en_yuksek > 0.35 else None
 
-        boyut_match = re.search(r'\b(\d+(?:[\.,]\d+)?)\s*(cl|cc|lik|luk)\b', parca)
-        kesin_boyut = float(boyut_match.group(1).replace(',', '.')) if boyut_match else None
-        if boyut_match: parca = parca.replace(boyut_match.group(0), "")
+def tum_depolari_bul():
+    txs, cfg = get_cloud_db(f"company_{CURRENT_COMPANY}_transactions").get("list", []), get_cloud_db(f"company_{CURRENT_COMPANY}_config")
+    depolar = set(d.upper() for d in cfg.get("depots", [])) if isinstance(cfg, dict) and "depots" in cfg else set()
+    for p in PRODUCTS: depolar.update(k.upper() for k in p.get("openings", {}).keys())
+    for t in txs:
+        if t.get("depot"): depolar.add(t.get("depot").upper())
+    if not depolar: depolar.update(["DEPO 1", "DEPO 2"])
+    dl = sorted(list(depolar))
+    ilk = cfg["depots"][0].upper() if isinstance(cfg, dict) and "depots" in cfg and cfg["depots"] else ("BAR" if "BAR" in dl else None)
+    if ilk and ilk in dl:
+        dl.remove(ilk)
+        dl.insert(0, ilk)
+    return dl
 
-        kalan_sayilar = re.findall(r'\b(\d+(?:[\.,]\d+)?)\b', parca)
-        kalan_float_sayilar = [float(s.replace(',', '.')) for s in kalan_sayilar]
-        kalan_metin = re.sub(r'\b\d+(?:[\.,]\d+)?\b', '', parca).strip()
+def depo_stok_hesapla(urun_id, depo):
+    nd = tr_temizle(depo).upper()
+    txs = get_cloud_db(f"company_{CURRENT_COMPANY}_transactions").get("list", [])
+    acilis = sum(float(v) for p in PRODUCTS if p["id"] == urun_id for k, v in p.get("openings", {}).items() if tr_temizle(k).upper() == nd)
+    in_q = sum(float(t.get("qty", 0)) for t in txs if t.get("prodId") == urun_id and tr_temizle(t.get("depot", "")).upper() == nd and (t.get("type") == "GİRİŞ" or t.get("type") == "GIRIS"))
+    out_q = sum(float(t.get("qty", 0)) for t in txs if t.get("prodId") == urun_id and tr_temizle(t.get("depot", "")).upper() == nd and (t.get("type") == "ÇIKIŞ" or t.get("type") == "CIKIS"))
+    return acilis + in_q - out_q
 
-        nihai_adet, nihai_boyut = 1.0, kesin_boyut
-
-        if len(kalan_float_sayilar) == 1:
-            s = kalan_float_sayilar[0]
-            if s in hacim_havuzu and not kesin_boyut: nihai_boyut = s
-            else: nihai_adet = s
-        elif len(kalan_float_sayilar) >= 2:
-            nihai_adet = kalan_float_sayilar[0]
-            if not kesin_boyut: nihai_boyut = kalan_float_sayilar[1]
-
-        en_iyi_urun, en_yuksek_skor = None, 0.0
-        for p in products:
-            p_name_temiz = p["name"].lower()
-            skor = SequenceMatcher(None, kalan_metin, p_name_temiz).ratio()
-            
-            for uw in [w for w in kalan_metin.split() if len(w) > 2]:
-                if uw in p_name_temiz: skor += 0.35
-                
-            if nihai_boyut:
-                b_str = str(nihai_boyut).replace(".0", "")
-                if b_str in p_name_temiz: skor += 0.5
-                else: skor -= 0.6
-                
-            if skor > en_yuksek_skor:
-                en_yuksek_skor = skor
-                en_iyi_urun = p
-
-        if en_iyi_urun and en_yuksek_skor > 0.35:
-            mevcut_item = next((item for item in sepet if item["urun_id"] == en_iyi_urun["id"]), None)
-            if mevcut_item: mevcut_item["miktar"] += float(nihai_adet)
-            else: sepet.append({"urun_id": en_iyi_urun["id"], "urun_adi": en_iyi_urun["name"], "miktar": float(nihai_adet)})
-
-    if not sepet: return {"status": "hata", "mesaj": "Ürünler tam anlaşılamadı. Lütfen kontrol edip tekrar yazın."}
-    return {"status": "onay_bekliyor", "islem_turu": islem_turu, "hedef_depo": hedef_depo.upper(), "sepet": sepet}
-
-# ==========================================
-# 💾 ANA İŞLEMCİ: KESİN KAYIT (ONAY SONRASI)
-# ==========================================
-def kesin_stok_kaydi_yap(onaylanmis_veri, products):
-    islem_turu = onaylanmis_veri.get("islem_turu")
-    hedef_depo = onaylanmis_veri.get("hedef_depo")
-    sepet = onaylanmis_veri.get("sepet", [])
-    
-    txs_data = get_cloud_db(f"company_{HEDEF_FIRMA}_transactions")
+def stok_islem_yap(urun_id, miktar, depo, islem="giris", ozel_tarih=None, aciklama=None):
+    nd = tr_temizle(depo).upper()
+    txs_data = get_cloud_db(f"company_{CURRENT_COMPANY}_transactions")
     txs = txs_data.get("list", [])
-    date_str = datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
-    imza = f"🤖 Onaylı İşlem"
-
-    detay_mesajlari, hata_mesajlari = [], []
-
-    for item in sepet:
-        mevcut_stok = depo_stok_hesapla(item["urun_id"], hedef_depo, products, txs)
-
-        if islem_turu == "ÇIKIŞ" and mevcut_stok < float(item["miktar"]):
-            hata_mesajlari.append(f"Yetersiz Stok! ({item['urun_adi']} için {sayi_formatla(mevcut_stok)} adet var)")
-            continue
-
-        txs.append({
-            "id": "stok_" + str(int(datetime.datetime.now().timestamp() * 1000)), 
-            "date": date_str, "depot": hedef_depo, "prodId": item["urun_id"], 
-            "prodName": item["urun_adi"], "type": islem_turu, "qty": float(item["miktar"]), "desc": imza
-        })
-        time.sleep(0.01)
-
-        yeni_stok = mevcut_stok + float(item["miktar"]) if islem_turu == "GİRİŞ" else mevcut_stok - float(item["miktar"])
-        detay_mesajlari.append(f"{sayi_formatla(item['miktar'])} {item['urun_adi']} (Kalan: {sayi_formatla(yeni_stok)})")
-
-    if hata_mesajlari: return "❌ İşlem İptal Edildi: " + " | ".join(hata_mesajlari)
-
-    set_cloud_db(f"company_{HEDEF_FIRMA}_transactions", {"list": txs})
+    date_str = ozel_tarih if ozel_tarih else datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
+    imza = f"🤖 Mükemmel Asistan Onaylı"
+    desc = f"{aciklama} [{imza}]" if aciklama else imza
+    urun_adi = next((p["name"] for p in PRODUCTS if p["id"] == urun_id), "")
     
-    islem_etiketi = "GİRİŞ YAPILDI" if islem_turu == "GİRİŞ" else "ÇIKIŞ YAPILDI"
-    if islem_turu == "TRANSFER": islem_etiketi = "TRANSFER EDİLDİ"
-    return f"✅ [{hedef_depo}] {islem_etiketi}: " + ", ".join(detay_mesajlari)
+    if islem == "transfer":
+        tx_type = "TRANSFER"
+    else:
+        tx_type = "GİRİŞ" if islem == "giris" else "ÇIKIŞ"
+    
+    txs.append({
+        "id": "stok_" + str(int(datetime.datetime.now().timestamp() * 1000)), 
+        "date": date_str, 
+        "depot": nd, 
+        "prodId": urun_id, 
+        "prodName": urun_adi, 
+        "type": tx_type, 
+        "qty": float(miktar), 
+        "desc": desc
+    })
+    set_cloud_db(f"company_{CURRENT_COMPANY}_transactions", {"list": txs})
 
 # ==========================================
-# ☁️ BULUT DİNLEME DÖNGÜSÜ (2 AŞAMALI YAPI)
+# 💾 ONAYLANAN SİPARİŞİ KESİN KAYDETME MOTORU
+# ==========================================
+def kesin_kayit_yap(pending):
+    islem = pending["tip"]
+    from_d = pending["from_depot"]
+    to_d = pending.get("to_depot")
+    tarih = pending["tarih"]
+    sepet = pending["sepet"]
+
+    detaylar, hatalar = [], []
+    for item in sepet:
+        prod_id = item["id"]
+        prod_name = item["name"]
+        qty = item["qty"]
+
+        mevcut = depo_stok_hesapla(prod_id, from_d)
+
+        if islem == "TRANSFER":
+            if mevcut < qty:
+                hatalar.append(f"{from_d.upper()} deposunda yeterli {prod_name} yok (Mevcut: {sayi_formatla(mevcut)}).")
+            else:
+                stok_islem_yap(prod_id, qty, from_d, "transfer", tarih, f"→ {to_d.upper()}")
+                stok_islem_yap(prod_id, qty, to_d, "transfer", tarih, f"← {from_d.upper()}")
+                detaylar.append(f"✅ {sayi_formatla(qty)} Adet | {prod_name}")
+
+        elif islem == "ÇIKIŞ":
+            if mevcut < qty:
+                hatalar.append(f"Yetersiz stok: {prod_name} (Mevcut: {sayi_formatla(mevcut)}).")
+            else:
+                stok_islem_yap(prod_id, qty, from_d, "cikis", tarih, None)
+                yeni_kalan = mevcut - qty
+                detaylar.append(f"✅ {sayi_formatla(qty)} Adet | {prod_name} (Kalan: {sayi_formatla(yeni_kalan)})")
+
+        elif islem == "GİRİŞ":
+            stok_islem_yap(prod_id, qty, from_d, "giris", tarih, None)
+            yeni_kalan = mevcut + qty
+            detaylar.append(f"✅ {sayi_formatla(qty)} Adet | {prod_name} (Stok: {sayi_formatla(yeni_kalan)})")
+
+    # Hafızayı temizle ki birden fazla kez onaylanmasın
+    set_cloud_db(f"company_{HEDEF_FIRMA}_pending_action", {})
+
+    if hatalar:
+        return "❌ **İşlem İptal Edildi**\n" + "\n".join(hatalar)
+
+    if islem == "TRANSFER":
+        return f"🚚 **TRANSFER BAŞARILI** ({from_d.upper()} ➡️ {to_d.upper()})\n" + "\n".join(detaylar)
+    elif islem == "ÇIKIŞ":
+        return f"📉 **ÇIKIŞ ONAYLANDI** [{from_d.upper()}]\n" + "\n".join(detaylar)
+    else:
+        return f"📦 **GİRİŞ ONAYLANDI** [{from_d.upper()}]\n" + "\n".join(detaylar)
+
+
+# ==========================================
+# 🤖 ANA KOMUT İŞLEYİCİ
+# ==========================================
+def process_command(user_input):
+    global PRODUCTS, CURRENT_COMPANY
+    CURRENT_COMPANY, PRODUCTS = firma_ve_urunleri_getir(HEDEF_FIRMA)
+    cmd_lower = metni_temizle(user_input)
+
+    # --- 1. ONAY VEYA İPTAL KONTROLÜ ---
+    if cmd_lower in ["onayla", "evet", "ok", "tamam"]:
+        pending = get_cloud_db(f"company_{HEDEF_FIRMA}_pending_action")
+        if isinstance(pending, dict) and pending.get("sepet"):
+            return kesin_kayit_yap(pending)
+        else:
+            return "⏳ Bekleyen bir onay işleminiz bulunmuyor."
+
+    if cmd_lower in ["iptal", "hayır", "vazgec", "vazgeç"]:
+        set_cloud_db(f"company_{HEDEF_FIRMA}_pending_action", {})
+        return "❌ İşlem iptal edildi. Yeni sipariş verebilirsiniz."
+
+    # Kullanıcı onay/iptal yazmadıysa, yeni bir komut veriyor demektir. 
+    # Hafızadaki eski onayı çöpe atalım ki karışıklık olmasın.
+    set_cloud_db(f"company_{HEDEF_FIRMA}_pending_action", {})
+
+    # --- 2. YENİ KOMUT ÇÖZÜMLEME ---
+    cmd_islenen = boyutlari_gizle(cmd_lower)
+    cozulen_tarih, tarih_hata = tarih_cozumle(cmd_lower)
+    if tarih_hata: return tarih_hata
+
+    aktif_depolar = tum_depolari_bul()
+    
+    is_transfer = any(w in cmd_islenen for w in ["aktar", "transfer", "gecir", "gonder", "tasi", "taşı"])
+    from_depot, to_depot = None, None
+    
+    if is_transfer:
+        bulunanlar = []
+        words = cmd_islenen.split()
+        for i, w in enumerate(words):
+            w_clean = w.rstrip("den dan tan ten de da ta ta e a ye ya")
+            for d in aktif_depolar:
+                d_clean = tr_temizle(d)
+                if w_clean == d_clean or w.startswith(d_clean):
+                    if not any(d == e[1] for e in bulunanlar):
+                        bulunanlar.append((i, d))
+        
+        if len(bulunanlar) >= 2:
+            bulunanlar.sort(key=lambda x: x[0])
+            from_depot, to_depot = bulunanlar[0][1], bulunanlar[1][1]
+        elif len(bulunanlar) == 1:
+            td = bulunanlar[0][1]
+            tk = words[bulunanlar[0][0]]
+            if any(tk.endswith(ek) for ek in ['dan', 'den', 'tan', 'ten']):
+                from_depot = td
+                digerleri = [d for d in aktif_depolar if tr_temizle(d) != tr_temizle(td)]
+                to_depot = digerleri[0] if digerleri else ("DEPO 2" if td != "DEPO 2" else "DEPO 1")
+            else:
+                to_depot = td
+                digerleri = [d for d in aktif_depolar if tr_temizle(d) != tr_temizle(td)]
+                from_depot = digerleri[0] if digerleri else ("DEPO 1" if td != "DEPO 1" else "DEPO 2")
+        else:
+            from_depot = aktif_depolar[0] if aktif_depolar else "BAR"
+            digerleri = [d for d in aktif_depolar if tr_temizle(d) != tr_temizle(from_depot)]
+            to_depot = digerleri[0] if digerleri else "OFİS"
+
+    secilen_depo = aktif_depolar[0] if aktif_depolar else "DEPO 1"
+    for d in aktif_depolar:
+        if any(k.startswith(tr_temizle(d)) for k in cmd_islenen.split()):
+            secilen_depo = d
+            break
+
+    is_toplam = "toplam" in cmd_islenen or "hepsi" in cmd_islenen
+    is_ekle = any(w in cmd_islenen for w in ["ekle", "giris", "artir", "alim", "geldi", "aldim"])
+    is_cikis = any(w in cmd_islenen for w in ["sat", "satis", "sattim", "satti", "satildi", "cikis", "eksilt", "gitti", "ver"])
+
+    eslesen_marka = next((m for m in MARKALAR if re.search(rf'\b{m}\b', cmd_lower)), None)
+    eslesen_kategori, eslesen_keywords = None, []
+    if not eslesen_marka:
+        for kat, keywords in KATEGORILER.items():
+            if re.search(rf'\b{kat}\b', cmd_lower): eslesen_kategori, eslesen_keywords = kat, keywords; break
+    
+    # 3. BİLGİ SORGUSU (Giriş/Çıkış değilse direkt cevap ver, onay sorma)
+    if (eslesen_marka or eslesen_kategori) and not is_transfer and not is_ekle and not is_cikis:
+        kat_urunleri = [p for p in PRODUCTS if eslesen_marka in tr_temizle(p["name"])] if eslesen_marka else [p for p in PRODUCTS if any(kw in tr_temizle(p["name"]) for kw in eslesen_keywords)]
+        grup_adi = (eslesen_marka or eslesen_kategori).title()
+        if kat_urunleri:
+            detaylar, genel_toplam = [], 0
+            for u in kat_urunleri:
+                t = sum(depo_stok_hesapla(u["id"], d) for d in aktif_depolar) if is_toplam else depo_stok_hesapla(u["id"], secilen_depo)
+                if t > 0: detaylar.append(f"{sayi_formatla(t)} adet {u['name']}"); genel_toplam += t
+            return f"ℹ️ İlgili depoda {grup_adi} kalmamıştır." if genel_toplam == 0 else f"ℹ️ {'Tüm depolar' if is_toplam else secilen_depo.upper()} toplam {sayi_formatla(genel_toplam)} {grup_adi}:\n" + "\n".join(detaylar)
+        return f"Stok kayıtlarında {grup_adi} bulunamadı."
+
+    items = []
+    parts = re.split(r'\b(\d+(?:[\.,]\d+)?)\b', cmd_islenen) 
+    if len(parts) > 1:
+        for i in range(1, len(parts), 2):
+            try:
+                qty = float(parts[i].replace(',', '.'))
+                urun = urun_bul(boyutlari_gerigetir(parts[i+1] if i+1 < len(parts) else ""))
+                if urun: items.append({"prod": urun, "qty": qty})
+            except: pass
+                
+    if not items:
+        urun = urun_bul(boyutlari_gerigetir(cmd_islenen))
+        if urun:
+            sayilar = re.findall(r'\b(\d+(?:[\.,]\d+)?)\b', cmd_islenen)
+            items.append({"prod": urun, "qty": float(sayilar[0].replace(',', '.')) if sayilar else 1})
+
+    if not items: return "Girilen talep anlaşılamadı. Lütfen geçerli bir işlem belirtin."
+    
+    # Bilgi sorgusuysa ve ürün belirtildiyse direkt göster (Ekle/Çıkar denmediyse)
+    if not is_transfer and not is_ekle and not is_cikis:
+        detay_mesajlari = []
+        if is_toplam:
+            for item in items:
+                toplam = sum(depo_stok_hesapla(item["prod"]["id"], d) for d in aktif_depolar)
+                detay_mesajlari.append(f"{sayi_formatla(toplam)} Adet | {item['prod']['name']}")
+            return "ℹ️ **GENEL TOPLAM:**\n" + "\n".join(detay_mesajlari)
+        else:
+            for item in items:
+                adet = depo_stok_hesapla(item["prod"]["id"], secilen_depo)
+                detay_mesajlari.append(f"{sayi_formatla(adet)} Adet | {item['prod']['name']}")
+            return f"ℹ️ **[{secilen_depo.upper()}] STOK DURUMU:**\n" + "\n".join(detay_mesajlari)
+
+    # --- 4. İŞLEM TESPİT EDİLDİ -> ŞIK ONAY TABLOSUNU OLUŞTUR VE HAFIZAYA AL ---
+    sepet = []
+    for item in items:
+        sepet.append({
+            "id": item["prod"]["id"],
+            "name": item["prod"]["name"],
+            "qty": item["qty"]
+        })
+
+    islem_tipi = "TRANSFER" if is_transfer else ("GİRİŞ" if is_ekle else "ÇIKIŞ")
+
+    # Botun hafızasına (bekleyen işlemlere) kaydet
+    pending_data = {
+        "tip": islem_tipi,
+        "from_depot": from_depot if is_transfer else secilen_depo,
+        "to_depot": to_depot if is_transfer else None,
+        "tarih": cozulen_tarih,
+        "sepet": sepet
+    }
+    set_cloud_db(f"company_{HEDEF_FIRMA}_pending_action", pending_data)
+
+    # Kullanıcıya gidecek Şık Tablo Tasarımı
+    mesaj = f"📋 **İŞLEM ONAYI BEKLENİYOR**\n\n"
+    if is_transfer:
+        mesaj += f"📍 **Rota:** {from_depot.upper()} ➡️ {to_depot.upper()}\n"
+    else:
+        mesaj += f"📍 **Depo:** {secilen_depo.upper()} | 🔄 **İşlem:** {islem_tipi}\n"
+    
+    mesaj += "━━━━━━━━━━━━━━━━━━\n"
+    for item in sepet:
+        mesaj += f"➖ {sayi_formatla(item['qty'])} Adet | {item['name']}\n"
+    mesaj += "━━━━━━━━━━━━━━━━━━\n\n"
+    mesaj += "✅ Onaylamak için **onayla**\n❌ İptal için **iptal** yazın."
+
+    return mesaj
+
+# ==========================================
+# ☁️ BULUT DİNLEME DÖNGÜSÜ & WEB SUNUCUSU
 # ==========================================
 def process_bot_queue():
-    print(f"🚀 {HEDEF_FIRMA} // ZEKİ ASİSTAN (2 AŞAMALI ONAY SİSTEMİ) AKTİF ☁️")
+    print(f"🚀 {CURRENT_COMPANY} // KURUMSAL STOK ASİSTANI (METİN ONAYLI) AKTİF ☁️")
     while True:
         try:
+            global HEDEF_FIRMA, CURRENT_COMPANY, PRODUCTS
             queue_data = get_cloud_db(f"company_{HEDEF_FIRMA}_bot_queue")
             commands = queue_data.get("list", [])
-            degisiklik_var = False
+            pending = [c for c in commands if c.get("status") == "bekliyor"]
             
-            PRODUCTS, AKTIF_DEPOLAR = firma_verilerini_getir(HEDEF_FIRMA)
-            txs_verisi_cache = None
-            
-            for cmd_obj in commands:
-                # FAZ 1: Kullanıcı yeni mesaj attı
-                if cmd_obj.get("status") == "bekliyor":
-                    analiz = nlp_siparis_cozumle(cmd_obj["cmd"], PRODUCTS, AKTIF_DEPOLAR)
-                    
-                    if analiz["status"] == "hata":
-                        cmd_obj["status"] = "tamamlandi"
-                        cmd_obj["reply"] = analiz["mesaj"]
-                    
-                    # Kullanıcı sadece bilgi/stok sorduysa, arayüz onayına sokmadan direkt cevap ver
-                    elif analiz["islem_turu"] == "BİLGİ":
-                        if not txs_verisi_cache: txs_verisi_cache = get_cloud_db(f"company_{HEDEF_FIRMA}_transactions").get("list", [])
-                        detaylar = []
-                        for item in analiz["sepet"]:
-                            mevcut = depo_stok_hesapla(item["urun_id"], analiz["hedef_depo"], PRODUCTS, txs_verisi_cache)
-                            detaylar.append(f"{sayi_formatla(mevcut)} adet {item['urun_adi']}")
-                        
-                        cmd_obj["status"] = "tamamlandi"
-                        cmd_obj["reply"] = f"ℹ️ [{analiz['hedef_depo']}] Stok Durumu: " + ", ".join(detaylar)
-                    
-                    # Giriş / Çıkış işlemiyse ön yüze onay JSON'u gönder ve beklemeye geç
-                    else:
-                        cmd_obj["status"] = "onay_bekliyor"
-                        cmd_obj["reply"] = json.dumps(analiz, ensure_ascii=False)
-                        
-                    degisiklik_var = True
-
-                # FAZ 2: Uygulamadan onay (yeşil buton) tıklandı
-                elif cmd_obj.get("status") == "onaylandi":
-                    onayli_veri = json.loads(cmd_obj["reply"])
-                    sonuc_mesaji = kesin_stok_kaydi_yap(onayli_veri, PRODUCTS)
-                    
-                    cmd_obj["status"] = "tamamlandi"
-                    cmd_obj["reply"] = sonuc_mesaji
-                    degisiklik_var = True
-
-            if degisiklik_var:
+            for cmd_obj in pending:
+                user_cmd = cmd_obj["cmd"]
+                print(f"📥 Sistemden Komut Alındı: {user_cmd}")
+                
+                reply_msg = process_command(user_cmd)
+                print(f"📤 Yanıt: {reply_msg}")
+                
+                cmd_obj["status"] = "tamamlandi"
+                cmd_obj["reply"] = reply_msg
                 set_cloud_db(f"company_{HEDEF_FIRMA}_bot_queue", {"list": commands})
                 
-            time.sleep(2)
+            time.sleep(3)
         except Exception as e:
             time.sleep(5)
 
-# ==========================================
-# 🌐 WEB SUNUCUSU
-# ==========================================
 class DummyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.send_header("Content-type", "text/html; charset=utf-8")
         self.end_headers()
-        html_content = f"<html><body><h1>🚀 Zeki Stok Asistanı (Onay Sistemi) Aktif!</h1></body></html>"
-        self.wfile.write(html_content.encode('utf-8'))
+        self.wfile.write(b"<h1>Kurumsal Stok Asistani (Text Onayli) Aktif!</h1>")
 
 def run_server():
     port = int(os.environ.get("PORT", 8080))
     server = HTTPServer(("0.0.0.0", port), DummyHandler)
+    print(f"🌐 Bulut Web Sunucusu Başlatıldı (Port: {port})")
     server.serve_forever()
 
 if __name__ == "__main__":
