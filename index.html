@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
@@ -2220,8 +2220,8 @@ transactions.forEach(t => {
 let tId = t.prodId || t.productId;
 let tName = t.prodName || t.name;
 if ((tId === realId || tName === prod.name) && t.depot === depotName) {
-if (t.type === 'GİRİŞ') inQty = roundNum(inQty + parseInputFloat(t.qty));
-if (t.type === 'ÇIKIŞ') outQty = roundNum(outQty + parseInputFloat(t.qty));
+if (t.type === 'GIRIS' || t.type === 'GİRİŞ') inQty = roundNum(inQty + parseInputFloat(t.qty));
+if (t.type === 'CIKIS' || t.type === 'ÇIKIŞ') outQty = roundNum(outQty + parseInputFloat(t.qty));
 }
 });
 return roundNum(opening + inQty - outQty);
@@ -2458,11 +2458,11 @@ ${depots.map(d => {
 let critVal = p.criticals && p.criticals[d] !== undefined ? p.criticals[d] : (p.critical !== undefined ? p.critical : 0);
 let openVal = p.openings && p.openings[d] !== undefined ? p.openings[d] : 0;
 return `<div style="display:flex; justify-content:space-between; align-items:center; gap:5px;">
-<span style="font-size:10px; font-weight:800; color:var(--primary); min-width:55px;">📍 ${d}</span>
-<div style="display:flex; gap:5px; align-items:center;">
-  <span style="font-size:9px; color:var(--muted);">Açılış:</span><input type="number" class="mgmt-opening" data-depot="${d}" value="${openVal}" step="any" style="width:50px; height:26px; font-size:10px; text-align:center;" onchange="autoSaveProduct('${p.id}')">
-  <span style="font-size:9px; color:var(--danger);">Kritik:</span><input type="number" class="mgmt-critical" data-depot="${d}" value="${critVal}" step="any" style="width:50px; height:26px; font-size:10px; text-align:center;" onchange="autoSaveProduct('${p.id}')">
-</div>
+ <span style="font-size:10px; font-weight:800; color:var(--primary); min-width:55px;">📍 ${d}</span>
+ <div style="display:flex; gap:5px; align-items:center;">
+   <span style="font-size:9px; color:var(--muted);">Açılış:</span><input type="number" class="mgmt-opening" data-depot="${d}" value="${openVal}" step="any" style="width:50px; height:26px; font-size:10px; text-align:center;" onchange="autoSaveProduct('${p.id}')">
+   <span style="font-size:9px; color:var(--danger);">Kritik:</span><input type="number" class="mgmt-critical" data-depot="${d}" value="${critVal}" step="any" style="width:50px; height:26px; font-size:10px; text-align:center;" onchange="autoSaveProduct('${p.id}')">
+ </div>
 </div>`;
 }).join('')}
 </div>
@@ -2811,8 +2811,8 @@ let targetDepotEl = document.getElementById('quickTargetDepot');
 let targetDepot = targetDepotEl ? targetDepotEl.value : depots[0];
 let currentStock = getCurrentStock(prodId, currentViewDepot);
 if (qty > currentStock) { showToast("Yetersiz", "Stok yetersiz.", true); return; }
-transactions.push({ date: dateStr, depot: currentViewDepot, prodId: prod.id, prodName: prod.name, type: 'ÇIKIŞ', qty: qty, desc: `➔ ${targetDepot} [${userSignature}]` });
-transactions.push({ date: dateStr, depot: targetDepot, prodId: prod.id, prodName: prod.name, type: 'GİRİŞ', qty: qty, desc: `⬅ ${currentViewDepot} [${userSignature}]` });
+transactions.push({ date: dateStr, depot: currentViewDepot, prodId: prod.id, prodName: prod.name, type: 'TRANSFER', qty: qty, desc: `➔ ${targetDepot} [${userSignature}]` });
+transactions.push({ date: dateStr, depot: targetDepot, prodId: prod.id, prodName: prod.name, type: 'TRANSFER', qty: qty, desc: `⬅ ${currentViewDepot} [${userSignature}]` });
 } else {
 if (quickTxType === 'ÇIKIŞ' && qty > getCurrentStock(prodId, currentViewDepot)) { showToast("Yetersiz", "Stok yetersiz.", true); return; }
 transactions.push({ date: dateStr, depot: currentViewDepot, prodId: prod.id, prodName: prod.name, type: quickTxType, qty: qty, desc: (desc ? `Hızlı: ${desc}` : 'Hızlı İşlem') + ` [${userSignature}]` });
@@ -2918,8 +2918,8 @@ let newTransactions = [];
 currentCart.forEach(item => {
 let finalDesc = (generalDesc ? generalDesc : '') + ` [${userSignature}]`;
 if (item.type === 'TRANSFER') {
-newTransactions.push({ date: dateStr, depot: item.depot, prodId: item.prodId, prodName: item.prodName, type: 'ÇIKIŞ', qty: item.qty, desc: `➔ ${item.targetDepot} [${userSignature}]` });
-newTransactions.push({ date: dateStr, depot: item.targetDepot, prodId: item.prodId, prodName: item.prodName, type: 'GİRİŞ', qty: item.qty, desc: `⬅ ${item.depot} [${userSignature}]` });
+newTransactions.push({ date: dateStr, depot: item.depot, prodId: item.prodId, prodName: item.prodName, type: 'TRANSFER', qty: item.qty, desc: `➔ ${item.targetDepot} [${userSignature}]` });
+newTransactions.push({ date: dateStr, depot: item.targetDepot, prodId: item.prodId, prodName: item.prodName, type: 'TRANSFER', qty: item.qty, desc: `⬅ ${item.depot} [${userSignature}]` });
 } else {
 newTransactions.push({ date: dateStr, depot: item.depot, prodId: item.prodId, prodName: item.prodName, type: item.type, qty: item.qty, desc: finalDesc });
 }
@@ -3170,9 +3170,9 @@ if (sidebarItemIslem) sidebarItemIslem.style.display = 'flex';
 updateAuthAreaUI();
 initDefaultReportDates();
 setTimeout(() => { 
-let startVal = document.getElementById('startDate').value;
-let endVal = document.getElementById('endDate').value;
-if (startVal && endVal) filterReport(false); 
+ let startVal = document.getElementById('startDate').value;
+ let endVal = document.getElementById('endDate').value;
+ if (startVal && endVal) filterReport(false); 
 }, 300);
 
 let lastPage = 'stoklar';
@@ -3444,8 +3444,8 @@ let totalIn = 0, totalOut = 0, consumptionMap = {};
 filteredWithIndex.forEach(item => {
 let t = item.t;
 let q = parseInputFloat(t.qty);
-if (t.type === 'GİRİŞ') totalIn = roundNum(totalIn + q);
-if (t.type === 'ÇIKIŞ') { 
+if (t.type === 'GİRİŞ' || t.type === 'GIRIS') totalIn = roundNum(totalIn + q);
+if (t.type === 'ÇIKIŞ' || t.type === 'CIKIS') { 
 totalOut = roundNum(totalOut + q); 
 let pName = t.prodName || t.name || 'Bilinmeyen Ürün';
 consumptionMap[pName] = roundNum((consumptionMap[pName] || 0) + q); 
@@ -3470,7 +3470,7 @@ repList.innerHTML = '<div style="font-size:11px; color:var(--muted); text-align:
 repList.innerHTML = filteredWithIndex.length === 0 ? '<div style="font-size:11px; color:var(--muted); text-align:center; padding:8px;">Bu tarih aralığında işlem yok.</div>' : filteredWithIndex.map(item => `
 <div style="display:flex; justify-content:space-between; padding:6px 8px; border:1.5px solid var(--border); border-radius:8px; background:var(--card); align-items:center;">
 <div style="flex:1; overflow:hidden; padding-right:5px;"><b style="font-size:11px;">${item.t.prodName || item.t.name || 'Bilinmeyen Ürün'}</b> <span style="font-size:8px; color:var(--primary);">[${item.t.depot}]</span><div style="font-size:9px; color:var(--muted);">${item.t.date} ${item.t.desc ? ' • '+item.t.desc : ''}</div></div>
-<div style="display:flex; align-items:center; gap:4px;"><div style="font-weight:900; font-size:12px; color:${item.t.type === 'GİRİŞ' ? 'var(--success)' : 'var(--danger)'};">${item.t.type === 'GİRİŞ' ? '+' : '-'}${item.t.qty}</div>${isAdmin ? `<button class="btn btn-danger btn-sm" style="height:24px; padding:0 6px; font-size:9px;" onclick="showCustomConfirm('İşlem silinsin mi?', () => deleteTransaction(${item.idx}))">🗑️</button>` : ''}</div>
+<div style="display:flex; align-items:center; gap:4px;"><div style="font-weight:900; font-size:12px; color:${item.t.type === 'GİRİŞ' || item.t.type === 'GIRIS' ? 'var(--success)' : (item.t.type === 'TRANSFER' ? 'var(--transfer)' : 'var(--danger)')};">${item.t.type === 'GİRİŞ' || item.t.type === 'GIRIS' ? '+' : (item.t.type === 'TRANSFER' ? '⇄' : '-')}${item.t.qty}</div>${isAdmin ? `<button class="btn btn-danger btn-sm" style="height:24px; padding:0 6px; font-size:9px;" onclick="showCustomConfirm('İşlem silinsin mi?', () => deleteTransaction(${item.idx}))">🗑️</button>` : ''}</div>
 </div>
 `).join('');
 }
@@ -3484,7 +3484,7 @@ function exportConsumptionExcel() {
 if (!isLogged) return;
 let consumptionMap = {};
 lastFilteredTransactions.forEach(item => {
-if (item.t.type === 'ÇIKIŞ') {
+if (item.t.type === 'ÇIKIŞ' || item.t.type === 'CIKIS') {
 let name = item.t.prodName || item.t.name || 'Bilinmeyen Ürün';
 consumptionMap[name] = roundNum((consumptionMap[name] || 0) + parseInputFloat(item.t.qty));
 }
@@ -3560,7 +3560,7 @@ function exportConsumptionPdf() {
 if (!isLogged) return;
 let consumptionMap = {};
 lastFilteredTransactions.forEach(item => {
-if (item.t.type === 'ÇIKIŞ') {
+if (item.t.type === 'ÇIKIŞ' || item.t.type === 'CIKIS') {
 let name = item.t.prodName || item.t.name || 'Bilinmeyen Ürün';
 consumptionMap[name] = roundNum((consumptionMap[name] || 0) + parseInputFloat(item.t.qty));
 }
@@ -3735,8 +3735,8 @@ if (val && val.list) {
 systemUsers = val.list;
 let matched = systemUsers.find(u => u.username.toLowerCase() === userObj.username.toLowerCase() && u.company === userObj.company);
 if (matched && matched.active !== false) {
- proceedLogin(matched);
- return;
+  proceedLogin(matched);
+  return;
 }
 }
 let loginBox = document.getElementById('loginBoxCard');
