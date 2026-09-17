@@ -3759,6 +3759,51 @@ let loginBox = document.getElementById('loginBoxCard');
 if (loginBox) loginBox.style.display = 'block';
 }
 });
+ function toggleBotWindow() {
+    if (!isLogged) {
+        showToast("Hata", "Önce giriş yapmalısınız.", true);
+        return;
+    }
+    let win = document.getElementById('botChatWindow');
+    win.style.display = win.style.display === 'none' || win.style.display === '' ? 'flex' : 'none';
+    if (win.style.display === 'flex') {
+        document.getElementById('botCommandInput').focus();
+    }
+}
+
+async function sendCommandToBot() {
+    let inp = document.getElementById('botCommandInput');
+    let cmd = inp.value.trim();
+    if (!cmd) return;
+    
+    // Kullanıcı mesajını ekrana yaz
+    let history = document.getElementById('botChatHistory');
+    history.innerHTML += `<div style="background:var(--card); border:1px solid var(--border); padding:8px; border-radius:8px; align-self:flex-end; max-width:85%; color:var(--text);">👤 ${cmd}</div>`;
+    inp.value = '';
+    history.scrollTop = history.scrollHeight;
+
+    // Supabase'e komutu gönder
+    let data = await getDocData(`company_${currentCompany}_bot_queue`) || { list: [] };
+    data.list.push({ id: Date.now(), cmd: cmd, status: 'bekliyor', time: new Date().toISOString() });
+    await setDocData(`company_${currentCompany}_bot_queue`, data);
+}
 </script>
+<!-- 🤖 YÜZEYDE DURAN BOT BUTONU -->
+<button id="floatingBotBtn" style="position:fixed; bottom:70px; right:15px; border-radius:50%; width:55px; height:55px; background:var(--primary); font-size:28px; border:none; box-shadow:var(--shadow-lg); z-index:1000; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform 0.2s;" onclick="toggleBotWindow()">🤖</button>
+
+<!-- 🤖 BOT SOHBET PENCERESİ -->
+<div id="botChatWindow" class="card" style="display:none; position:fixed; bottom:135px; right:15px; width:320px; max-width:90%; height:380px; z-index:1001; flex-direction:column; box-shadow:var(--shadow-lg); border:2px solid var(--primary);">
+    <div class="modal-header" style="background:var(--primary); color:#fff; padding:10px; border-radius:10px 10px 0 0; margin:-12px -12px 10px -12px;">
+        <b style="font-size:13px;">🤖 Stok Asistanı</b>
+        <button class="btn btn-sm" style="background:transparent; color:#fff; border:none; font-size:16px;" onclick="toggleBotWindow()">×</button>
+    </div>
+    <div id="botChatHistory" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px; font-size:11px; margin-bottom:10px; padding-right:5px;">
+        <div style="background:rgba(37,99,235,0.1); padding:8px; border-radius:8px; align-self:flex-start; max-width:85%;">Merhaba patron! Ben hazırım, ne işlem yapıyoruz?</div>
+    </div>
+    <div style="display:flex; gap:5px; border-top:1px solid var(--border); padding-top:10px;">
+        <input type="text" id="botCommandInput" placeholder="Örn: ofisten bara 2 tuborg aktar..." style="flex:1; height:36px; border-radius:8px; border:1px solid var(--border); padding:0 10px; font-size:11px;" onkeypress="if(event.key==='Enter') sendCommandToBot()">
+        <button class="btn btn-success" style="height:36px; border-radius:8px; padding:0 12px;" onclick="sendCommandToBot()">Gönder</button>
+    </div>
+</div>
 </body>
 </html>
