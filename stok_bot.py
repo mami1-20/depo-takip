@@ -9,7 +9,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 HEDEF_FIRMA = "LAVİN OTEL"
 
 SUPABASE_URL = "https://qckafgpwbcapskunrwjm.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFja2FmZ3B3YmNhcHNrdW5yd2ptIiwicm9sZSI6ImFub24iOjE3ODk0OTEyOTEsImV4cCI6MjEwNTA2NzI5MX0.sHQIWHCeifTCKAxV_fI7WE1esxoB1XK_bkGLj9D1NLQ"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFja2FmZ3B3YmNhcHNrdW5yd2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTEyOTEsImV4cCI6MjEwNTA2NzI5MX0.sHQIWHCeifTCKAxV_fI7WE1esxoB1XK_bkGLj9D1NLQ"
 
 HEADERS = {
     "apikey": SUPABASE_KEY,
@@ -19,7 +19,7 @@ HEADERS = {
 }
 
 def get_tr_now():
-    # 📌 Bulut sunucunun saatini Türkiye saatine (+3 saat) sabitliyoruz
+    # 📌 Bulut sunucunun saat farkını tamamen yoksayarak net Türkiye saati (+3) üretir
     return datetime.datetime.utcnow() + datetime.timedelta(hours=3)
 
 def get_cloud_db(target_key):
@@ -295,7 +295,7 @@ def process_bot_queue():
         try:
             queue_data = get_cloud_db(f"company_{CURRENT_COMPANY}_bot_queue")
             commands = queue_data.get("list", [])
-            pending = [c for c in commands if c.get("status"] == "bekliyor"]
+            pending = [c for c in commands if c.get("status") == "bekliyor"]
             
             for cmd_obj in pending:
                 user_cmd = cmd_obj["cmd"]
