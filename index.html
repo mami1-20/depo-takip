@@ -3785,16 +3785,50 @@ async function sendCommandToBot() {
     let cmd = inp.value.trim();
     if (!cmd) return;
     
-    // Kullanıcı mesajını ekrana yaz
+    // 1. Kullanıcı mesajını ekrana yaz
     let history = document.getElementById('botChatHistory');
     history.innerHTML += `<div style="background:var(--card); border:1px solid var(--border); padding:8px; border-radius:8px; align-self:flex-end; max-width:85%; color:var(--text);">👤 ${cmd}</div>`;
     inp.value = '';
     history.scrollTop = history.scrollHeight;
 
-    // Supabase'e komutu gönder
+    // 2. Ekrana geçici "İşleniyor..." mesajı ekle
+    let typingId = 'typing_' + Date.now();
+    history.innerHTML += `<div id="${typingId}" style="background:rgba(37,99,235,0.1); border:1px solid rgba(37,99,235,0.2); padding:10px; border-radius:8px; align-self:flex-start; max-width:85%; display:flex; gap:8px; align-items:flex-start;">
+        <img src="bot.png" style="width:18px; height:18px; flex-shrink:0; opacity:0.5;">
+        <div style="line-height:1.4; color:var(--muted);">⏳ Asistan işliyor...</div>
+    </div>`;
+    history.scrollTop = history.scrollHeight;
+
+    // 3. Supabase kuyruğuna komutu ekle
+    let msgId = Date.now();
     let data = await getDocData(`company_${currentCompany}_bot_queue`) || { list: [] };
-    data.list.push({ id: Date.now(), cmd: cmd, status: 'bekliyor', time: new Date().toISOString() });
+    data.list.push({ id: msgId, cmd: cmd, status: 'bekliyor', time: new Date().toISOString() });
     await setDocData(`company_${currentCompany}_bot_queue`, data);
+
+    // 4. Botun cevabını dinamik olarak bekle
+    let checkInterval = setInterval(async () => {
+        let checkData = await getDocData(`company_${currentCompany}_bot_queue`);
+        if (checkData && checkData.list) {
+            let myMsg = checkData.list.find(x => x.id === msgId);
+            if (myMsg && myMsg.status === 'tamamlandi') {
+                clearInterval(checkInterval);
+                
+                // "İşleniyor..." yazısını kaldır
+                let typingEl = document.getElementById(typingId);
+                if (typingEl) typingEl.remove();
+
+                // Asistanın kurumsal ve havalı cevabını ekrana bas
+                history.innerHTML += `<div style="background:rgba(37,99,235,0.1); border:1px solid rgba(37,99,235,0.2); padding:10px; border-radius:8px; align-self:flex-start; max-width:85%; display:flex; gap:8px; align-items:flex-start;">
+                    <img src="bot.png" style="width:18px; height:18px; flex-shrink:0;">
+                    <div style="line-height:1.4;">${myMsg.reply}</div>
+                </div>`;
+                history.scrollTop = history.scrollHeight;
+                
+                // Stok tablosunu anında yenile
+                initCompanyData(currentCompany); 
+            }
+        }
+    }, 2000); // 2 saniyede bir kontrol et
 }
 </script>
 <!-- 🤖 YÜZEYDE DURAN BOT BUTONU (GİZLİ VE YENİ İKONLU) -->
