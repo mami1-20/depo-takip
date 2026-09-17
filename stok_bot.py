@@ -143,7 +143,7 @@ def stok_islem_yap(urun_id, miktar, depo, islem="giris", ozel_tarih=None, acikla
     txs_data = get_cloud_db(f"company_{CURRENT_COMPANY}_transactions")
     txs = txs_data.get("list", [])
     date_str = ozel_tarih if ozel_tarih else datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
-    imza = f"🤖 {CURRENT_COMPANY} Kurumsal Asistan"
+    imza = f"🤖 {CURRENT_COMPANY} Asistan"
     desc = f"{aciklama} [{imza}]" if aciklama else imza
     urun_adi = next((p["name"] for p in PRODUCTS if p["id"] == urun_id), "")
     txs.append({"id": "stok_" + str(int(datetime.datetime.now().timestamp() * 1000)), "date": date_str, "depot": nd, "prodId": urun_id, "prodName": urun_adi, "type": "GİRİŞ" if islem == "giris" else "ÇIKIŞ", "qty": float(miktar), "desc": desc})
@@ -274,9 +274,12 @@ def process_bot_queue():
     print(f"🚀 {CURRENT_COMPANY} // KURUMSAL STOK ASİSTANI AKTİF VE DİNLİYOR ☁️💼")
     while True:
         try:
-            queue_data = get_cloud_db(f"company_{CURRENT_COMPANY}_bot_queue")
+            # 1. Her döngüde güncel hedef firmayı ve kuyruğu kontrol et
+            global HEDEF_FIRMA, CURRENT_COMPANY, PRODUCTS
+            # Config tablosundan aktif firma adını dinamik yakala (Opsiyonel olarak güncellenebilir)
+            queue_data = get_cloud_db(f"company_{HEDEF_FIRMA}_bot_queue")
             commands = queue_data.get("list", [])
-            pending = [c for c in commands if c.get("status") == "bekliyor"]
+            pending = [c for c in commands if c.get("status"] == "bekliyor"]
             
             for cmd_obj in pending:
                 user_cmd = cmd_obj["cmd"]
@@ -287,7 +290,7 @@ def process_bot_queue():
                 
                 cmd_obj["status"] = "tamamlandi"
                 cmd_obj["reply"] = reply_msg
-                set_cloud_db(f"company_{CURRENT_COMPANY}_bot_queue", {"list": commands})
+                set_cloud_db(f"company_{HEDEF_FIRMA}_bot_queue", {"list": commands})
                 
             time.sleep(3)
         except Exception as e:
