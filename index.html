@@ -3780,71 +3780,19 @@ if (loginBox) loginBox.style.display = 'block';
     }
 }
 
-async function sendCommandToBot() {
-    try {
-        let inp = document.getElementById('botCommandInput');
-        if (!inp) return;
-        let cmd = inp.value.trim();
-        if (!cmd) return;
-        
-        // 1. Kullanıcı mesajını ekrana yaz
-        let history = document.getElementById('botChatHistory');
-        if (!history) return;
-        history.innerHTML += `<div style="background:var(--card); border:1px solid var(--border); padding:8px; border-radius:8px; align-self:flex-end; max-width:85%; color:var(--text);">👤 ${cmd}</div>`;
-        inp.value = '';
-        history.scrollTop = history.scrollHeight;
-
-        // 2. Ekrana geçici "İşleniyor..." mesajı ekle
-        let typingId = 'typing_' + Date.now();
-        history.innerHTML += `<div id="${typingId}" style="background:rgba(37,99,235,0.1); border:1px solid rgba(37,99,235,0.2); padding:10px; border-radius:8px; align-self:flex-start; max-width:85%; display:flex; gap:8px; align-items:flex-start;">
-            <img src="bot.png" style="width:18px; height:18px; flex-shrink:0; opacity:0.5;">
-            <div style="line-height:1.4; color:var(--muted);">⏳ Asistan işliyor...</div>
-        </div>`;
-        history.scrollTop = history.scrollHeight;
-
-        // 3. Supabase kuyruğuna komutu ekle
-        let msgId = Date.now();
-        let queueKey = `company_${currentCompany}_bot_queue`;
-        let data = await getDocData(queueKey) || { list: [] };
-        data.list.push({ id: msgId, cmd: cmd, status: 'bekliyor', time: new Date().toISOString() });
-        await setDocData(queueKey, data);
-
-        // 4. Botun cevabını dinamik olarak bekle
-        let checkInterval = setInterval(async () => {
-            try {
-                let checkData = await getDocData(queueKey);
-                if (checkData && checkData.list) {
-                    let myMsg = checkData.list.find(x => x.id === msgId);
-                    if (myMsg && myMsg.status === 'tamamlandi') {
-                        clearInterval(checkInterval);
-                        
-                        let typingEl = document.getElementById(typingId);
-                        if (typingEl) typingEl.remove();
-
-                        history.innerHTML += `<div style="background:rgba(37,99,235,0.1); border:1px solid rgba(37,99,235,0.2); padding:10px; border-radius:8px; align-self:flex-start; max-width:85%; display:flex; gap:8px; align-items:flex-start;">
-                            <img src="bot.png" style="width:18px; height:18px; flex-shrink:0;">
-                            <div style="line-height:1.4;">${myMsg.reply}</div>
-                        </div>`;
-                        history.scrollTop = history.scrollHeight;
-                        
-                        initCompanyData(currentCompany); 
-                    }
-                }
-            } catch(innerErr) {
-                console.error("Dinleme hatası:", innerErr);
-            }
-        }, 2000);
-
-    } catch (err) {
-        console.error("sendCommandToBot kritik hata:", err);
-        showToast("Hata", "Komut gönderilemedi, konsolu kontrol edin.", true);
-    }
-}
- // Butona ve Enter tuşuna doğrudan olay (event) atıyoruz
+// Tüm tıklama ve enter olaylarını güvenli bir şekilde bağlıyoruz
 document.addEventListener("DOMContentLoaded", () => {
+    let floatBtn = document.getElementById('floatingBotBtn');
+    let closeBtn = document.getElementById('botCloseBtn');
     let sendBtn = document.getElementById('botSendBtn');
     let cmdInput = document.getElementById('botCommandInput');
 
+    if (floatBtn) {
+        floatBtn.addEventListener('click', toggleBotWindow);
+    }
+    if (closeBtn) {
+        closeBtn.addEventListener('click', toggleBotWindow);
+    }
     if (sendBtn) {
         sendBtn.addEventListener('click', sendCommandToBot);
     }
@@ -3856,6 +3804,20 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 });
+
+function toggleBotWindow() {
+    if (!isLogged) {
+        showToast("Hata", "Önce giriş yapmalısınız.", true);
+        return;
+    }
+    let win = document.getElementById('botChatWindow');
+    if (!win) return;
+    win.style.display = (win.style.display === 'none' || win.style.display === '') ? 'flex' : 'none';
+    if (win.style.display === 'flex') {
+        let inp = document.getElementById('botCommandInput');
+        if (inp) inp.focus();
+    }
+}
 
 async function sendCommandToBot() {
     try {
@@ -3918,6 +3880,11 @@ async function sendCommandToBot() {
     <img src="bot.png" alt="Stok Asistanı" style="width:100%; height:100%; object-fit:contain;">
 </button>
 
+<!-- 🤖 YÜZEYDE DURAN BOT BUTONU -->
+<button id="floatingBotBtn" style="display:none; position:fixed; bottom:70px; right:15px; border-radius:50%; width:60px; height:60px; background:var(--card); border:2px solid var(--primary); box-shadow:var(--shadow-lg); z-index:1000; cursor:pointer; align-items:center; justify-content:center; transition:transform 0.2s; padding:8px;">
+    <img src="bot.png" alt="Stok Asistanı" style="width:100%; height:100%; object-fit:contain;">
+</button>
+
 <!-- 🤖 BOT SOHBET PENCERESİ -->
 <div id="botChatWindow" class="card" style="display:none; position:fixed; bottom:135px; right:15px; width:320px; max-width:90%; height:380px; z-index:1001; flex-direction:column; box-shadow:var(--shadow-lg); border:2px solid var(--primary);">
     <div class="modal-header" style="background:var(--primary); color:#fff; padding:10px; border-radius:10px 10px 0 0; margin:-12px -12px 10px -12px; display:flex; align-items:center; justify-content:space-between;">
@@ -3925,7 +3892,7 @@ async function sendCommandToBot() {
             <img src="bot.png" alt="Bot" style="width:20px; height:20px; filter:brightness(0) invert(1);">
             <b style="font-size:13px;">Akıllı Stok Asistanı</b>
         </div>
-        <button class="btn btn-sm" style="background:transparent; color:#fff; border:none; font-size:16px;" onclick="toggleBotWindow()">×</button>
+        <button id="botCloseBtn" class="btn btn-sm" style="background:transparent; color:#fff; border:none; font-size:16px; cursor:pointer;">×</button>
     </div>
     <div id="botChatHistory" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px; font-size:11px; margin-bottom:10px; padding-right:5px;">
         <div style="background:rgba(37,99,235,0.1); border:1px solid rgba(37,99,235,0.2); padding:10px; border-radius:8px; align-self:flex-start; max-width:85%; display:flex; gap:8px; align-items:flex-start;">
@@ -3935,7 +3902,7 @@ async function sendCommandToBot() {
     </div>
     <div style="display:flex; gap:5px; border-top:1px solid var(--border); padding-top:10px;">
         <input type="text" id="botCommandInput" placeholder="İşlem komutunuzu yazın..." style="flex:1; height:36px; border-radius:8px; border:1px solid var(--border); padding:0 10px; font-size:11px;">
-        <button id="botSendBtn" class="btn btn-success" style="height:36px; border-radius:8px; padding:0 12px;">İlet</button>
+        <button id="botSendBtn" class="btn btn-success" style="height:36px; border-radius:8px; padding:0 12px; cursor:pointer;">İlet</button>
     </div>
 </div>
 </body>
