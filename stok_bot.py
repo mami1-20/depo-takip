@@ -9,7 +9,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 HEDEF_FIRMA = "LAVİN OTEL"
 
 SUPABASE_URL = "https://qckafgpwbcapskunrwjm.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFja2FmZ3B3YmNhcHNrdW5yd2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTEyOTEsImV4cCI6MjEwNTA2NzI5MX0.sHQIWHCeifTCKAxV_fI7WE1esxoB1XK_bkGLj9D1NLQ"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFja2FmZ3B3YmNhcHNrdW5yd2ptIiwicm9sZSI6ImFub24iOjE3ODk0OTEyOTEsImV4cCI6MjEwNTA2NzI5MX0.sHQIWHCeifTCKAxV_fI7WE1esxoB1XK_bkGLj9D1NLQ"
 
 HEADERS = {
     "apikey": SUPABASE_KEY,
@@ -17,6 +17,10 @@ HEADERS = {
     "Content-Type": "application/json",
     "Prefer": "resolution=merge-duplicates"
 }
+
+def get_tr_now():
+    # 📌 Bulut sunucunun saatini Türkiye saatine (+3 saat) sabitliyoruz
+    return datetime.datetime.utcnow() + datetime.timedelta(hours=3)
 
 def get_cloud_db(target_key):
     try:
@@ -83,7 +87,7 @@ def sayi_formatla(num): return int(num) if float(num) % 1 == 0 else float(num)
 
 # --- TARİH VE STOK MOTORU ---
 def tarih_cozumle(komut):
-    simdi = datetime.datetime.now()
+    simdi = get_tr_now()
     if any(w in komut for w in ["dun", "bir gun once"]): return (simdi - datetime.timedelta(days=1)).strftime("%d.%m.%Y %H:%M"), None
     match_gecen_ay = re.search(r'gecen\s+ayin\s+(\d+)', komut)
     if match_gecen_ay:
@@ -117,17 +121,24 @@ def urun_bul(komut):
     return en_iyi if en_yuksek > 0.35 else None
 
 def tum_depolari_bul():
-    txs, cfg = get_cloud_db(f"company_{CURRENT_COMPANY}_transactions").get("list", []), get_cloud_db(f"company_{CURRENT_COMPANY}_config")
-    depolar = set(d.upper() for d in cfg.get("depots", [])) if isinstance(cfg, dict) and "depots" in cfg else set()
-    for p in PRODUCTS: depolar.update(k.upper() for k in p.get("openings", {}).keys())
+    txs = get_cloud_db(f"company_{CURRENT_COMPANY}_transactions").get("list", [])
+    cfg = get_cloud_db(f"company_{CURRENT_COMPANY}_config")
+    depolar = set()
+    ilk_depo_ayar = None
+    if isinstance(cfg, dict) and "depots" in cfg and len(cfg["depots"]) > 0:
+        ilk_depo_ayar = cfg["depots"][0].upper()
+        for d in cfg["depots"]: depolar.add(d.upper())
+    for p in PRODUCTS:
+        for k in p.get("openings", {}).keys(): depolar.add(k.upper())
     for t in txs:
         if t.get("depot"): depolar.add(t.get("depot").upper())
-    if not depolar: depolar.update(["DEPO 1", "DEPO 2"])
+    if not depolar: 
+        depolar.update(["DEPO 1", "DEPO 2"])
+        ilk_depo_ayar = "DEPO 1"
     dl = sorted(list(depolar))
-    ilk = cfg["depots"][0].upper() if isinstance(cfg, dict) and "depots" in cfg and cfg["depots"] else ("BAR" if "BAR" in dl else None)
-    if ilk and ilk in dl:
-        dl.remove(ilk)
-        dl.insert(0, ilk)
+    if ilk_depo_ayar and ilk_depo_ayar in dl:
+        dl.remove(ilk_depo_ayar)
+        dl.insert(0, ilk_depo_ayar)
     return dl
 
 def depo_stok_hesapla(urun_id, depo):
@@ -142,15 +153,16 @@ def stok_islem_yap(urun_id, miktar, depo, islem="giris", ozel_tarih=None, acikla
     nd = tr_temizle(depo).upper()
     txs_data = get_cloud_db(f"company_{CURRENT_COMPANY}_transactions")
     txs = txs_data.get("list", [])
-    date_str = ozel_tarih if ozel_tarih else datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
+    tr_now = get_tr_now()
+    date_str = ozel_tarih if ozel_tarih else tr_now.strftime("%d.%m.%Y %H:%M")
     imza = f"🤖 {CURRENT_COMPANY} Bot"
     desc = f"{aciklama} [{imza}]" if aciklama else imza
     urun_adi = next((p["name"] for p in PRODUCTS if p["id"] == urun_id), "")
-    txs.append({"id": "stok_" + str(int(datetime.datetime.now().timestamp() * 1000)), "date": date_str, "depot": nd, "prodId": urun_id, "prodName": urun_adi, "type": "GİRİŞ" if islem == "giris" else "ÇIKIŞ", "qty": float(miktar), "desc": desc})
+    txs.append({"id": "stok_" + str(int(tr_now.timestamp() * 1000)), "date": date_str, "depot": nd, "prodId": urun_id, "prodName": urun_adi, "type": "GİRİŞ" if islem == "giris" else "ÇIKIŞ", "qty": float(miktar), "desc": desc})
     set_cloud_db(f"company_{CURRENT_COMPANY}_transactions", {"list": txs})
 
 # ==========================================
-# 🤖 ANA KOMUT İŞLEYİCİ
+# 🤖 ASİSTAN CEVAP MOTORU
 # ==========================================
 def process_command(user_input):
     global PRODUCTS, CURRENT_COMPANY
@@ -159,7 +171,7 @@ def process_command(user_input):
     cmd_islenen = boyutlari_gizle(cmd_lower)
 
     cozulen_tarih, tarih_hata = tarih_cozumle(cmd_lower)
-    if tarih_hata: return tarih_hata
+    if tarih_hata: return f"⚠️ {tarih_hata}"
 
     aktif_depolar = tum_depolari_bul()
     is_transfer = any(w in cmd_islenen for w in ["aktar", "transfer", "gecir"])
@@ -198,6 +210,7 @@ def process_command(user_input):
         for kat, keywords in KATEGORILER.items():
             if re.search(rf'\b{kat}\b', cmd_lower): eslesen_kategori, eslesen_keywords = kat, keywords; break
     
+    # 📌 Grup / Kategori Sorgusu
     if (eslesen_marka or eslesen_kategori) and not is_transfer and not is_ekle and not is_cikis:
         kat_urunleri = [p for p in PRODUCTS if eslesen_marka in tr_temizle(p["name"])] if eslesen_marka else [p for p in PRODUCTS if any(kw in tr_temizle(p["name"]) for kw in eslesen_keywords)]
         grup_adi = (eslesen_marka or eslesen_kategori).title()
@@ -206,8 +219,8 @@ def process_command(user_input):
             for u in kat_urunleri:
                 t = sum(depo_stok_hesapla(u["id"], d) for d in aktif_depolar) if is_toplam else depo_stok_hesapla(u["id"], secilen_depo)
                 if t > 0: detaylar.append(f"{sayi_formatla(t)} adet {u['name']}"); genel_toplam += t
-            return f"Patron, bu depoda hiç {grup_adi} kalmamış." if genel_toplam == 0 else f"{'Tüm depolar' if is_toplam else secilen_depo.upper()} toplam {sayi_formatla(genel_toplam)} {grup_adi}: " + ", ".join(detaylar)
-        return f"Stoklarda {grup_adi} bulamadım."
+            return f"⚠️ Patron, bu depoda hiç {grup_adi} kalmamış." if genel_toplam == 0 else f"📦 {'Tüm depoların toplamında' if is_toplam else secilen_depo.upper() + ' deposunda'} {grup_adi} grubu için güncel durum:\n" + ", ".join(detaylar)
+        return f"⚠️ Stoklarımızda {grup_adi} grubuna ait ürün bulamadım patron."
 
     items = []
     parts = re.split(r'\b(\d+(?:[\.,]\d+)?)\b', cmd_islenen) 
@@ -225,47 +238,53 @@ def process_command(user_input):
             sayilar = re.findall(r'\b(\d+(?:[\.,]\d+)?)\b', cmd_islenen)
             items.append({"prod": urun, "qty": float(sayilar[0].replace(',', '.')) if sayilar else 1})
 
-    if not items: return "Talebinizi anlayamadım."
+    if not items: return "⚠️ Patron, talebini tam anlayamadım veya depolarda bu ürünü bulamadım."
     detay_mesajlari, hata_mesajlari = [], []
     
+    # 🔄 TRANSFER
     if is_transfer:
-        if not from_depot or not to_depot or tr_temizle(from_depot) == tr_temizle(to_depot): return "Talebinizi anlayamadım."
+        if not from_depot or not to_depot or tr_temizle(from_depot) == tr_temizle(to_depot): return "⚠️ Patron, kaynak ve hedef depoyu tam anlayamadım. (Örn: ofisten bara 2 tuborg aktar)"
         for item in items:
             mevcut = depo_stok_hesapla(item["prod"]["id"], from_depot)
-            if mevcut < item["qty"]: hata_mesajlari.append(f"{from_depot.upper()} deposunda yeterli {item['prod']['name']} yok. Mevcut: {sayi_formatla(mevcut)} adet")
+            if mevcut < item["qty"]: hata_mesajlari.append(f"{from_depot.upper()} deposunda yeterli {item['prod']['name']} yok. (Mevcut: {sayi_formatla(mevcut)} adet)")
             elif item["qty"] > 0:
                 stok_islem_yap(item["prod"]["id"], item["qty"], from_depot, "cikis", cozulen_tarih, f"Transfer -> {to_depot.upper()}")
                 stok_islem_yap(item["prod"]["id"], item["qty"], to_depot, "giris", cozulen_tarih, f"Transfer <- {from_depot.upper()}")
-                detay_mesajlari.append(f"{sayi_formatla(item['qty'])} {item['prod']['name']}")
-        if hata_mesajlari: return ". ".join(hata_mesajlari)
-        return f"{from_depot.upper()} -> {to_depot.upper()} aktarıldı ({cozulen_tarih.split()[0]}): " + ", ".join(detay_mesajlari)
+                detay_mesajlari.append(f"{sayi_formatla(item['qty'])} adet {item['prod']['name']}")
+        if hata_mesajlari: return "⚠️ " + " ".join(hata_mesajlari)
+        return f"✅ Tamamdır patron! {from_depot.upper()} deposundan {to_depot.upper()} deposuna " + ", ".join(detay_mesajlari) + " transferini gerçekleştirdim."
                 
+    # 🟢 GİRİŞ / EKLE
     elif is_ekle:
         for item in items:
             stok_islem_yap(item["prod"]["id"], item["qty"], secilen_depo, "giris", cozulen_tarih, None)
-            detay_mesajlari.append(f"{sayi_formatla(item['qty'])} {item['prod']['name']} (Kalan: {sayi_formatla(depo_stok_hesapla(item['prod']['id'], secilen_depo))})")
-        return f"({secilen_depo.upper()}) eklendi [{cozulen_tarih.split()[0]}]: " + ", ".join(detay_mesajlari)
+            detay_mesajlari.append(f"{sayi_formatla(item['qty'])} adet {item['prod']['name']} (Güncel: {sayi_formatla(depo_stok_hesapla(item['prod']['id'], secilen_depo))})")
+        return f"✅ Hallettim patron! {secilen_depo.upper()} deposuna " + ", ".join(detay_mesajlari) + " stok girişi yapıldı."
         
+    # 🔴 ÇIKIŞ / SATIŞ
     elif is_cikis:
         for item in items:
             mevcut = depo_stok_hesapla(item["prod"]["id"], secilen_depo)
-            if mevcut < item["qty"]: hata_mesajlari.append(f"Deponuzda yeterli {item['prod']['name']} yok. Mevcut: {sayi_formatla(mevcut)} adet")
+            if mevcut < item["qty"]: hata_mesajlari.append(f"Depoda yeterli {item['prod']['name']} yok. (Mevcut: {sayi_formatla(mevcut)} adet)")
             elif item["qty"] > 0:
                 stok_islem_yap(item["prod"]["id"], item["qty"], secilen_depo, "cikis", cozulen_tarih, None)
-                detay_mesajlari.append(f"{sayi_formatla(item['qty'])} {item['prod']['name']} (Kalan: {sayi_formatla(depo_stok_hesapla(item['prod']['id'], secilen_depo))})")
-        if hata_mesajlari: return ". ".join(hata_mesajlari)
-        return f"({secilen_depo.upper()}) çıkışı [{cozulen_tarih.split()[0]}]: " + ", ".join(detay_mesajlari)
+                detay_mesajlari.append(f"{sayi_formatla(item['qty'])} adet {item['prod']['name']} (Kalan: {sayi_formatla(depo_stok_hesapla(item['prod']['id'], secilen_depo))})")
+        if hata_mesajlari: return "⚠️ " + " ".join(hata_mesajlari)
+        return f"✅ Satış işlemi başarıyla gerçekleşti patron! {secilen_depo.upper()} deposundan " + ", ".join(detay_mesajlari) + " düşüldü."
         
+    # 🔍 SORGULAMA (TOPLAM)
     elif is_toplam:
         for item in items:
             toplam = sum(depo_stok_hesapla(item["prod"]["id"], d) for d in aktif_depolar)
-            detay_mesajlari.append(f"{sayi_formatla(toplam)} {item['prod']['name']}")
-        return "Toplam: " + ", ".join(detay_mesajlari)
+            detay_mesajlari.append(f"{sayi_formatla(toplam)} adet {item['prod']['name']}")
+        return "📦 Bütün depoları kontrol ettim patron, toplam durum: " + ", ".join(detay_mesajlari)
+        
+    # 🔍 SORGULAMA (TEK DEPO)
     else:
         for item in items:
             adet = depo_stok_hesapla(item["prod"]["id"], secilen_depo)
-            detay_mesajlari.append(f"{sayi_formatla(adet)} {item['prod']['name']}")
-        return f"({secilen_depo.upper()}): " + ", ".join(detay_mesajlari)
+            detay_mesajlari.append(f"{sayi_formatla(adet)} adet {item['prod']['name']}")
+        return f"📦 Hemen baktım patron, {secilen_depo.upper()} deposunda şu an " + ", ".join(detay_mesajlari) + " bulunuyor."
 
 # ==========================================
 # ☁️ BULUT DİNLEME DÖNGÜSÜ & WEB SUNUCUSU
@@ -276,7 +295,7 @@ def process_bot_queue():
         try:
             queue_data = get_cloud_db(f"company_{CURRENT_COMPANY}_bot_queue")
             commands = queue_data.get("list", [])
-            pending = [c for c in commands if c.get("status") == "bekliyor"]
+            pending = [c for c in commands if c.get("status"] == "bekliyor"]
             
             for cmd_obj in pending:
                 user_cmd = cmd_obj["cmd"]
@@ -289,7 +308,7 @@ def process_bot_queue():
                 cmd_obj["reply"] = reply_msg
                 set_cloud_db(f"company_{CURRENT_COMPANY}_bot_queue", {"list": commands})
                 
-            time.sleep(3) # Siteden gelenleri 3 saniyede bir kontrol et
+            time.sleep(3)
         except Exception as e:
             time.sleep(5)
 
@@ -303,7 +322,7 @@ class DummyHandler(BaseHTTPRequestHandler):
 def run_server():
     port = int(os.environ.get("PORT", 8080))
     server = HTTPServer(("0.0.0.0", port), DummyHandler)
-    print(f"🌐 Bulut Web Sunucusu Başlatıldı (Port: {port})")
+    print(f"🌐 Bulut Web Sunucusu Baslatildi (Port: {port})")
     server.serve_forever()
 
 if __name__ == "__main__":
@@ -311,4 +330,3 @@ if __name__ == "__main__":
     t.daemon = True
     t.start()
     run_server()
-EOF
