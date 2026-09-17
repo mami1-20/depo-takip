@@ -3419,7 +3419,7 @@ let listEl = document.getElementById('productSuggestionsList');
 if (searchBox && listEl && !searchBox.contains(e.target) && !listEl.contains(e.target)) listEl.style.display = 'none';
 });
 
-// 🤖 DOĞRUDAN BAĞLANTILI BOT FONKSİYONLARI
+// 🤖 BOT KONTROL FONKSİYONLARI (ANLIK EKRAN GÜNCELLEME DESTEKLİ)
 function toggleBotWindow() {
     if (!isLogged) { showToast("Hata", "Önce giriş yapmalısınız.", true); return; }
     let win = document.getElementById('botChatWindow');
@@ -3474,7 +3474,9 @@ async function sendCommandToBot() {
                         </div>`;
                         history.scrollTop = history.scrollHeight;
                         
-                        initCompanyData(currentCompany); 
+                        // 📌 İŞTE EKRANIN DONMASINI ÖNLEYEN VE ANINDA GÜNCELLEYEN KISIM:
+                        await initCompanyData(currentCompany);
+                        renderStock();
                     }
                 }
             } catch(innerErr) {
