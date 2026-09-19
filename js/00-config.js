@@ -1,0 +1,50 @@
+// ============================================================
+// CONFIG - Supabase, Gemini ve uygulama yapilandirmasi (APP_CONFIG)
+// ============================================================
+
+
+const SUPABASE_URL = 'https://qckafgpwbcapskunrwjm.supabase.co';
+
+
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFja2FmZ3B3YmNhcHNrdW5yd2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTEyOTEsImV4cCI6MjEwNTA2NzI5MX0.sHQIWHCeifTCKAxV_fI7WE1esxoB1XK_bkGLj9D1NLQ';
+
+
+
+const { createClient }
+
+ = supabase;
+
+
+const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+
+
+let realTimeSubscription = null;
+
+
+// ============================================================
+// UYGULAMA YAPILANDIRMASI
+// NOT: Bu anahtarlar su an istemci tarafinda. Produksiyon icin bunlari
+// bir sunucu ara katmanina (backend / Supabase Edge Function) tasiyin ve
+// anahtarlari oradan saglayin. Arayuz ayni kalir.
+// ============================================================
+const APP_CONFIG = Object.assign({
+  SUPABASE_URL: SUPABASE_URL,
+  SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
+  GEMINI_API_KEY: 'AQ.Ab8RN6JaXtdGQht7V8lW2QE3i1v4EpXnD_Pno1uZevOA5W0_Xg',
+  TARGET_MODEL: 'gemini-3.6-flash',
+  // AI okuma parametreleri (tek yerden ayarlanir)
+  AI_MEDIA_RESOLUTION: 'MEDIA_RESOLUTION_MEDIUM',
+  AI_TEMPERATURE: 0,
+  AI_MAX_OUTPUT_TOKENS: 4096,
+  AI_IMAGE_MAX_SIDE: 1600,
+  AI_IMAGE_QUALITY: 0.9,
+  AI_TIMEOUT_MS: 60000
+}, (typeof window !== 'undefined' && window.APP_CONFIG_OVERRIDE) ? window.APP_CONFIG_OVERRIDE : {});
+
+
+
+const GEMINI_API_KEY = APP_CONFIG.GEMINI_API_KEY;
+
+
+const TARGET_MODEL = APP_CONFIG.TARGET_MODEL;
