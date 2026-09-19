@@ -1,0 +1,906 @@
+// ============================================================
+// AI ASSISTANT - Gemini okuma (hizli, coklu gorsel), liste gorunumu, otomatik stok islemleri
+// ============================================================
+
+
+
+function openAiResultModal(modalPrefix) {
+    let modalId = modalPrefix + 'ResultModal';
+    let loadingEl = document.getElementById(modalPrefix + 'LoadingArea');
+    let contentEl = document.getElementById(modalPrefix + 'ContentArea');
+    openModal(modalId);
+    if (loadingEl) loadingEl.style.display = 'block';
+    if (contentEl) contentEl.style.display = 'none';
+}
+
+
+
+function closeAiResultModal(modalPrefix) {
+    closeModal(modalPrefix + 'ResultModal');
+}
+
+
+
+function commitAiTransactions(modalPrefix, newTransactions, clearCallback, successMsg) {
+    transactions.push(...newTransactions);
+    saveTransactionsToCloud().then(() => {
+        closeModal(modalPrefix + 'ResultModal');
+        renderStock();
+        showToast("Başarılı", successMsg);
+        if (clearCallback) clearCallback();
+    });
+}
+
+
+
+function syncAiDateToResult(resultInputId, resultTextId) {
+    let mainInput = document.getElementById('aiMainDateInput');
+    let mainText = document.getElementById('aiMainDateText');
+    let resultInput = document.getElementById(resultInputId);
+    let resultText = document.getElementById(resultTextId);
+    if (mainInput && resultInput && mainInput.value) {
+        resultInput.value = mainInput.value;
+        if (resultText && mainText) resultText.textContent = mainText.textContent;
+    }
+}
+
+
+
+function aiDefaultDepot() { return (typeof depots !== 'undefined' && depots && depots.length) ? depots[0] : ''; }
+
+function openAiMainActionModal() {
+    if (!isLogged) { showToast("Hata", "Önce giriş yapmalısınız.", true); return; }
+    openModal('aiMainActionModal');
+}
+
+
+
+function openAiSpecificActionModal(actionType) {
+    closeModal('aiMainActionModal');
+    if (!isLogged) { showToast("Hata", "Önce giriş yapmalısınız.", true); return; }
+    if (actionType === 'transfer') {
+        if (!depots || depots.length < 2) { showToast("Hata", "Transfer için en az 2 depo olmalı.", true); return; }
+    }
+    activeAiActionType = actionType;
+    let titleEl = document.getElementById('unifiedAiModalTitle');
+    if (titleEl) {
+        if (actionType === 'aiOkut') titleEl.textContent = '📤 Satış Fişiyle Hızlı Çıkış';
+        else if (actionType === 'fatura') titleEl.textContent = '📥 Fatura / İrsaliye ile Girişişi';
+        else if (actionType === 'transfer') titleEl.textContent = '🔁 Depolar Arası Transfer';
+    }
+    let depotSel = document.getElementById('unifiedAiDepotSel');
+    let box1 = document.getElementById('uniDepotBox1');
+    let boxTrans = document.getElementById('uniTransferDepotBox');
+    if (actionType === 'transfer') {
+        if (box1) box1.style.display = 'none';
+        if (boxTrans) boxTrans.style.display = 'grid';
+        let srcSel = document.getElementById('uniTransSrcDepot');
+        let tgtSel = document.getElementById('uniTransTgtDepot');
+        if (srcSel) srcSel.innerHTML = depots.map(d => `<option value="${d}">${d}</option>`).join('');
+        if (srcSel) srcSel.value = depots[0];
+        updateUniTransferTargets();
+    } else {
+        if (box1) box1.style.display = 'block';
+        if (boxTrans) boxTrans.style.display = 'none';
+        if (depotSel) {
+            depotSel.innerHTML = depots.map(d => `<option value="${d}">${d}</option>`).join('');
+            depotSel.value = aiDefaultDepot();
+        }
+    }
+    enhancerApplyToIds(['unifiedAiDepotSel', 'uniTransSrcDepot', 'uniTransTgtDepot']);
+    try { if (depotSel) { depotSel.value = aiDefaultDepot(); if (depotSel.__usaiRefresh) depotSel.__usaiRefresh(); depotSel.dispatchEvent(new Event('change', { bubbles: true })); } } catch(e) {}
+    openModal('unifiedAiActionModal');
+}
+
+
+
+function updateUniTransferTargets() {
+    let srcVal = getDepotValue('uniTransSrcDepot', '');
+    let tgtSel = document.getElementById('uniTransTgtDepot');
+    if (!tgtSel) return;
+    tgtSel.innerHTML = depots.filter(d => d !== srcVal).map(d => `<option value="${d}">${d}</option>`).join('');
+}
+
+
+
+function executeUnifiedAiSource(sourceMethod) {
+    closeModal('unifiedAiActionModal');
+    let prefix = activeAiActionType === 'aiOkut' ? 'globalAi' : (activeAiActionType === 'fatura' ? 'globalInvoice' : 'globalTransfer');
+    let inputId = prefix + (sourceMethod === 'camera' ? 'CameraInput' : 'FileInput');
+    let inp = document.getElementById(inputId);
+    if (inp) inp.click();
+}
+
+
+
+// --- GÖRÜNTÜ SIKIŞTIRMA + OTOMATİK KIRPMA ---
+function compressImageForOCR(file) {
+    return new Promise((resolve, reject) => {
+        let img = new Image();
+        let objectUrl = URL.createObjectURL(file);
+        img.onload = function () {
+            URL.revokeObjectURL(objectUrl);
+            const MAX_SIDE = APP_CONFIG.AI_IMAGE_MAX_SIDE;
+            let w = img.naturalWidth;
+            let h = img.naturalHeight;
+            if (w > h) { if (w > MAX_SIDE) { h = Math.round(h * MAX_SIDE / w); w = MAX_SIDE; } }
+            else { if (h > MAX_SIDE) { w = Math.round(w * MAX_SIDE / h); h = MAX_SIDE; } }
+
+            // Adım 1: Önce ölçeklendirip çiz
+            let canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            let ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+
+            // Adım 2: Otomatik kenar kırpma — beyaz/açık kenarları kes
+            try {
+                let imageData = ctx.getImageData(0, 0, w, h);
+                let d = imageData.data;
+                let threshold = 235; // 235 üstü = "boş" kenar
+                let minW = w, maxW = 0, minH = h, maxH = 0;
+                let step = Math.max(1, Math.floor(Math.min(w, h) / 200)); // hız için örneklem
+                let foundContent = false;
+
+                for (let y = 0; y < h; y += step) {
+                    for (let x = 0; x < w; x += step) {
+                        let i = (y * w + x) * 4;
+                        let brightness = (d[i] + d[i+1] + d[i+2]) / 3;
+                        if (brightness < threshold) {
+                            foundContent = true;
+                            if (x < minW) minW = x;
+                            if (x > maxW) maxW = x;
+                            if (y < minH) minH = y;
+                            if (y > maxH) maxH = y;
+                        }
+                    }
+                }
+
+                // İçerik bulunduysa ve kenarlar varsa kırp
+                if (foundContent && (minW > 5 || maxW < w - 5 || minH > 5 || maxH < h - 5)) {
+                    let pad = 10; // kenardan biraz boşluk bırak
+                    minW = Math.max(0, minW - pad);
+                    minH = Math.max(0, minH - pad);
+                    maxW = Math.min(w, maxW + pad);
+                    maxH = Math.min(h, maxH + pad);
+                    let cw = maxW - minW;
+                    let ch = maxH - minH;
+                    if (cw > 50 && ch > 50) {
+                        let cropped = document.createElement('canvas');
+                        cropped.width = cw;
+                        cropped.height = ch;
+                        let cctx = cropped.getContext('2d');
+                        cctx.drawImage(canvas, minW, minH, cw, ch, 0, 0, cw, ch);
+                        canvas = cropped;
+                        ctx = cctx;
+                    }
+                }
+            } catch(e) { /* getImageData CORS hatası — kırpmasız devam */ }
+
+            let dataUrl = canvas.toDataURL('image/jpeg', APP_CONFIG.AI_IMAGE_QUALITY);
+            resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+        };
+        img.onerror = reject;
+        img.src = objectUrl;
+    });
+}
+
+
+
+// --- GEMİNİ ÇAĞRISI ---
+function salvageJsonArray(raw) {
+  if (!raw) return [];
+  let s = String(raw).replace(/```json/g,'').replace(/```/g,'').trim();
+  let i = s.indexOf('['); if (i !== -1) s = s.substring(i+1);
+  let out = [], re = /\{[^{}]*\}/g, m;
+  while ((m = re.exec(s)) !== null) { try { let o = JSON.parse(m[0]); if (o && (o.isim || o.name)) out.push(o); } catch(e){} }
+  return out;
+}
+function parseItemsLoose(raw) {
+  try {
+    let t = String(raw).replace(/```json/g,'').replace(/```/g,'').trim();
+    let a = t.indexOf('['), b = t.lastIndexOf(']');
+    if (a !== -1 && b !== -1 && b > a) return JSON.parse(t.substring(a, b+1));
+    return JSON.parse(t);
+  } catch (e) {
+    let s2 = salvageJsonArray(raw);
+    if (s2.length) { try { showToast('Bilgi', 'Yanıt kesildi; okunabilen ' + s2.length + ' kalem alındı.', false); } catch(_){} return s2; }
+    throw e;
+  }
+}
+async function sendWithRetry(base64Data, promptText, mimeType = "image/jpeg", retries = 2, delay = 900) {
+  try { if (typeof products !== 'undefined' && products.length) { let _names = products.slice(0, 400).map(function(p){return p.name;}).join(', '); if (_names) promptText += "\n\nFirma ürün listesi (eşleştirme için, sadece bu isimlerden varsa kullan): " + _names; } } catch(e) {}
+  try {
+    let { data: fnData, error: fnErr } = await _supabase.functions.invoke('ai-oku', {
+      body: { promptText: promptText, base64Data: base64Data, mimeType: mimeType,
+        generationConfig: { temperature: APP_CONFIG.AI_TEMPERATURE, maxOutputTokens: APP_CONFIG.AI_MAX_OUTPUT_TOKENS } }
+    });
+    if (fnErr) { console.error('[depo-takip] ai-oku fonksiyon hatasi:', fnErr); throw new Error(fnErr.message || 'AI fonksiyonu çağrılamadı'); }
+    if (fnData && fnData.error) { console.error('[depo-takip] ai-oku Gemini hatasi:', fnData.error); throw new Error(fnData.error); }
+    return parseItemsLoose(fnData && fnData.text ? fnData.text : '');
+  } catch (serverErr) { console.error('[depo-takip] AI okuma hatasi:', serverErr); throw serverErr; }
+}
+async function sendWithRetryLegacy(base64Data, promptText, mimeType = "image/jpeg", retries = 2, delay = 900) {
+  try { if (typeof products !== 'undefined' && products.length) { let _names = products.slice(0, 400).map(function(p){return p.name;}).join(', '); if (_names) promptText += "\n\nFirma ürün listesi (eşleştirme için, sadece bu isimlerden varsa kullan): " + _names; } } catch(e) {}
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${TARGET_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+    const requestBody = {
+        contents: [{ parts: [{ text: promptText }, { inline_data: { mime_type: mimeType, data: base64Data } }] }],
+        generationConfig: { mediaResolution: APP_CONFIG.AI_MEDIA_RESOLUTION, temperature: APP_CONFIG.AI_TEMPERATURE, maxOutputTokens: APP_CONFIG.AI_MAX_OUTPUT_TOKENS }
+    };
+    for (let i = 1; i <= retries; i++) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), APP_CONFIG.AI_TIMEOUT_MS);
+            let response;
+            try {
+                response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestBody), signal: controller.signal });
+            } finally {
+                clearTimeout(timeoutId);
+            }
+            const data = await response.json();
+            if (data.error) {
+                const isBusy = data.error.code === 503 || data.error.code === 429 || (data.error.message && data.error.message.toLowerCase().includes("demand"));
+                if (isBusy && i < retries) { await new Promise(res => setTimeout(res, delay * i)); continue; }
+                throw new Error(data.error.message);
+            }
+            let rawText = data.candidates[0].content.parts[0].text.replace(/```json/g, '').replace(/```/g, '').trim();
+            let jsonStart = rawText.indexOf('[');
+            let jsonEnd = rawText.lastIndexOf(']');
+            if (jsonStart !== -1 && jsonEnd !== -1) { rawText = rawText.substring(jsonStart, jsonEnd + 1); }
+            return JSON.parse(rawText);
+        } catch (err) {
+            if (i === retries) throw err;
+            await new Promise(res => setTimeout(res, delay * i));
+        }
+    }
+}
+
+
+
+// --- HANDLE UNIVERSAL FILE UPLOAD ---
+function handleUniversalFileUpload(event, actionType) {
+    let files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    let targetDepot = '';
+    let srcDepot = '';
+    let tgtDepot = '';
+    if (actionType === 'transfer') {
+        srcDepot = getDepotValue('uniTransSrcDepot', '');
+        tgtDepot = getDepotValue('uniTransTgtDepot', '');
+        let sSpan = document.getElementById('aiTransferSourceDepotName');
+        let tSpan = document.getElementById('aiTransferTargetDepotName');
+        if (sSpan) sSpan.textContent = srcDepot;
+        if (tSpan) tSpan.textContent = tgtDepot;
+        openAiResultModal('aiTransfer');
+        syncAiDateToResult('aiTransferDateInput', 'aiTransferDateText');
+    } else {
+        targetDepot = getDepotValue('unifiedAiDepotSel', currentViewDepot || '');
+        if (actionType === 'aiOkut') {
+            let infoDepotSpan = document.getElementById('aiCameraTargetDepotName');
+            if (infoDepotSpan) infoDepotSpan.textContent = targetDepot;
+            openAiResultModal('aiCamera');
+            syncAiDateToResult('aiCameraDateInput', 'aiCameraDateText');
+        } else if (actionType === 'fatura') {
+            let infoDepotSpan = document.getElementById('invoiceTargetDepotName');
+            if (infoDepotSpan) infoDepotSpan.textContent = targetDepot;
+            openAiResultModal('aiInvoice');
+            syncAiDateToResult('aiInvoiceDateInput', 'aiInvoiceDateText');
+        }
+    }
+    let imageFiles = files.filter(f => f.type && f.type.includes('image'));
+    if (imageFiles.length > 0) {
+        // Birden fazla görsel: hepsini PARALEL işle ve sonuçları birleştir (çok daha hızlı).
+        Promise.all(imageFiles.map(f => compressImageForOCR(f).then(({ base64, mimeType }) => ({ base64, mimeType }))))
+            .then(parts => multiGeminiSend(parts, actionType, targetDepot, srcDepot, tgtDepot))
+            .catch(() => {
+                showToast("Hata", "Görsel işlenemedi.", true);
+                closeAiResultModal('aiCamera'); closeAiResultModal('aiInvoice'); closeAiResultModal('aiTransfer');
+            });
+    } else if (files.length === 1 && (files[0].type === 'application/pdf' || files[0].name.endsWith('.pdf'))) {
+        let file = files[0];
+        let reader = new FileReader();
+        reader.onloadend = function() {
+            let base64String = reader.result.split(',')[1];
+            if (actionType === 'aiOkut') sendImageToGeminiVision(base64String, targetDepot, 'application/pdf');
+            else if (actionType === 'fatura') sendInvoiceImageToGeminiVision(base64String, targetDepot, 'application/pdf');
+            else if (actionType === 'transfer') sendTransferImageToGeminiVision(base64String, srcDepot, tgtDepot, 'application/pdf');
+        };
+        reader.readAsDataURL(file);
+    } else if (files.length === 1 && (files[0].name.endsWith('.xlsx') || files[0].name.endsWith('.xls') || files[0].name.endsWith('.csv'))) {
+        let file = files[0];
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                let data = new Uint8Array(e.target.result);
+                let workbook = XLSX.read(data, { type: 'array' });
+                let firstSheetName = workbook.SheetNames[0];
+                let worksheet = workbook.Sheets[firstSheetName];
+                let jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                let parsedList = [];
+                jsonRows.forEach((row, idx) => {
+                    if (idx === 0 || !row || row.length === 0) return;
+                    let name = sanitizeText(String(row[0] || ''));
+                    let qty = parseInputFloat(row[1] || row[2] || 1);
+                    if (name) parsedList.push({ isim: name, miktar: qty });
+                });
+                if (actionType === 'aiOkut') processParsedItemsForOut(parsedList, targetDepot);
+                else if (actionType === 'fatura') processParsedItemsForInvoice(parsedList, targetDepot);
+                else if (actionType === 'transfer') processParsedItemsForTransfer(parsedList, srcDepot, tgtDepot);
+            } catch(err) {
+                showToast("Hata", "Excel okunamadı.", true);
+                closeAiResultModal('aiCamera'); closeAiResultModal('aiInvoice'); closeAiResultModal('aiTransfer');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    } else {
+        showToast("Hata", "Bu dosya türü desteklenmiyor. Lütfen fotoğraf, PDF veya Excel yükleyin.", true);
+        closeAiResultModal('aiCamera'); closeAiResultModal('aiInvoice'); closeAiResultModal('aiTransfer');
+    }
+    event.target.value = '';
+}
+
+
+
+
+// ===== ÇOKLU GÖRSEL: paralel gönderim + tek seferde birleştirme =====
+async function multiGeminiSend(parts, actionType, targetDepot, srcDepot, tgtDepot) {
+    try {
+        let results = await Promise.all(parts.map(function (p) {
+            if (actionType === 'aiOkut') return geminiReadItems(p.base64, 'adisyon', p.mimeType);
+            if (actionType === 'fatura') return geminiReadItems(p.base64, 'fatura', p.mimeType);
+            return geminiReadItems(p.base64, 'transfer', p.mimeType);
+        }));
+        // Tüm parçaların kalemlerini birleştir; aynı ürün tekrar ediyorsa miktarları topla.
+        let merged = {};
+        results.flat().forEach(function (it) {
+            let nm = sanitizeText(it.isim || '');
+            if (!nm) return;
+            let key = nm.toLowerCase();
+            merged[key] = merged[key] || { isim: nm, miktar: 0 };
+            merged[key].miktar = roundNum(merged[key].miktar + parseInputFloat(it.miktar));
+        });
+        let items = Object.values(merged);
+        if (actionType === 'aiOkut') processParsedItemsForOut(items, targetDepot);
+        else if (actionType === 'fatura') processParsedItemsForInvoice(items, targetDepot);
+        else processParsedItemsForTransfer(items, srcDepot, tgtDepot);
+    } catch (error) {
+        closeAiResultModal('aiCamera'); closeAiResultModal('aiInvoice'); closeAiResultModal('aiTransfer');
+        showToast("AI Hatası", "Okuma yapılamadı: " + error.message, true);
+    }
+}
+
+
+
+// Tek görsel/PDF için JSON kalem listesi döndüren ortak okuyucu (prompt tipine göre)
+async function geminiReadItems(base64Data, kind, mimeType) {
+    let prompt;
+    if (kind === 'adisyon') {
+        prompt = "Bu bir adisyon/satış fişi fotoğrafı. TÜM ürün kalemlerini ve adetlerini EKSİKSİZ oku. KURALLAR: (1) Tablodaki HER satırı oku, en üstten en alta hiçbir satırı atlama; arka plandaki küçük satırları da al. (2) 'Ürün' sütunu = isim, 'Miktar/Adet/Porsiyon' sütunu = sayı; bunları eşleştir. (3) TOPLAM, ARA TOPLAM, KDV, İNDİRİM, TUTAR, TARİH, FİŞ NO gibi para/toplam satırlarını ALMA. (4) Ürün adını fişte yazdığı gibi yaz, kısaltma uydurma, Türkçe karakterleri koru. (5) Emin olamadığın adı en yakın okunuşla yaz ama satırı ATLAMA. Yalnızca şu formatta geçerli bir JSON array olarak yanıt ver, başka hiçbir açıklama, metin veya markdown (kesinlikle kod bloğu ve backtick kullanma) ekleme:\n[{\"isim\": \"Trio 37,5 CL Beyaz\", \"miktar\": 1}, {\"isim\": \"Tuborg 50 CL\", \"miktar\": 6}]";
+    } else if (kind === 'fatura') {
+        prompt = "Bu bir fatura/irsaliye fotoğrafı. TÜM ürün kalemlerini ve sevk/giriş adetlerini EKSİKSİZ oku. KURALLAR: (1) Tablodaki HER ürün satırını oku, atlama yapma; sayfada kaç kalem varsa hepsini al. (2) Ürün adı = mal/hizmet açıklaması sütunu, miktar = sevk edilen/giren miktar (adet). (3) TOPLAM, ARA TOPLAM, KDV, İSKONTO, TUTAR, YEKÜN gibi para satırlarını ALMA. (4) Ürün adını faturada yazdığı gibi koru; Türkçe karakterleri ve ölçü birimlerini (CL, ML, KG) muhafaza et. (5) Emin olamadığın adı en yakın okunuşla yaz ama satırı ATLAMA. Yalnızca şu formatta geçerli bir JSON array olarak yanıt ver, başka hiçbir açıklama, metin veya markdown (kesinlikle kod bloğu ve backtick kullanma) ekleme:\n[{\"isim\": \"Kola 330ml\", \"miktar\": 24}, {\"isim\": \"Efes Pilsen\", \"miktar\": 12}]";
+    } else {
+        prompt = "Bu bir ürün/miktar listesi fotoğrafı. TÜM ürünleri ve adetlerini EKSİKSİZ oku. KURALLAR: (1) Listedeki HER satırı oku, atlama yapma. (2) Ürün adını ve yanındaki miktarı/adet sayısını eşleştir. (3) Toplam/tutar satırlarını ALMA. (4) Ürün adını yazıldığı gibi koru; Türkçe karakterleri muhafaza et. (5) Emin olamadığın adı en yakın okunuşla yaz ama satırı ATLAMA. Yalnızca şu formatta geçerli bir JSON array olarak yanıt ver, başka hiçbir açıklama, metin veya markdown (kesinlikle kod bloğu ve backtick kullanma) ekleme:\n[{\"isim\": \"Trio 37,5 CL Beyaz\", \"miktar\": 1}, {\"isim\": \"Tuborg 50 CL\", \"miktar\": 6}]";
+    }
+    return await sendWithRetry(base64Data, prompt, mimeType);
+}
+
+
+
+async function sendImageToGeminiVision(base64Data, targetDepot, mimeType = 'image/jpeg') {
+    let prompt = "Bu bir adisyon/satış fişi fotoğrafı. TÜM ürün kalemlerini ve adetlerini EKSİKSİZ oku. KURALLAR: (1) Tablodaki HER satırı oku, en üstten en alta hiçbir satırı atlama; arka plandaki küçük satırları da al. (2) 'Ürün' sütunu = isim, 'Miktar/Adet/Porsiyon' sütunu = sayı; bunları eşleştir. (3) TOPLAM, ARA TOPLAM, KDV, İNDİRİM, TUTAR, TARİH, FİŞ NO gibi para/toplam satırlarını ALMA. (4) Ürün adını fişte yazdığı gibi yaz, kısaltma uydurma, Türkçe karakterleri koru. (5) Emin olamadığın adı en yakın okunuşla yaz ama satırı ATLAMA. Yalnızca şu formatta geçerli bir JSON array olarak yanıt ver, başka hiçbir açıklama, metin veya markdown (kesinlikle kod bloğu ve backtick kullanma) ekleme:\n[{\"isim\": \"Trio 37,5 CL Beyaz\", \"miktar\": 1}, {\"isim\": \"Tuborg 50 CL\", \"miktar\": 6}]";
+    try {
+        let rawItems = await sendWithRetry(base64Data, prompt, mimeType);
+        processParsedItemsForOut(rawItems, targetDepot);
+    } catch (error) {
+        closeAiResultModal('aiCamera');
+        showToast("AI Hatası", "Okuma yapılamadı: " + error.message, true);
+    }
+}
+
+
+
+function processParsedItemsForOut(rawItems, targetDepot) {
+    validOutItems = []; insufficientOutItems = []; missingOutItems = [];
+    rawItems.forEach(item => {
+        let isim = sanitizeText(item.isim || "");
+        let miktar = parseInputFloat(item.miktar);
+        let foundProd = findProductByName(isim);
+        if (foundProd) {
+            let isAllowed = (!foundProd.allowedDepots || foundProd.allowedDepots.includes(targetDepot));
+            if (isAllowed) {
+                let currentStock = getCurrentStock(foundProd.id, targetDepot);
+                if (currentStock >= miktar) {
+                    validOutItems.push({ prodId: foundProd.id, prodName: foundProd.name, group: foundProd.group, miktar: miktar });
+                } else {
+                    insufficientOutItems.push({ prodName: foundProd.name, miktar: miktar, stock: currentStock });
+                }
+            } else {
+                missingOutItems.push({ prodName: foundProd.name, miktar: miktar, reason: "Bu depoda bu ürün bulunmuyor" });
+            }
+        } else {
+            missingOutItems.push({ prodName: isim || "Bilinmeyen Ürün", miktar: miktar, reason: "Firmada bu ürün kayıtlı değil" });
+        }
+    });
+    renderAiOutParsedList();
+}
+
+
+
+function renderAiOutParsedList() {
+    let container = document.getElementById('aiCameraParsedList');
+    if (!container) return;
+    
+    let html = '';
+
+    html += `<div style="font-size:10px; font-weight:800; color:var(--success); margin-bottom:4px; flex-shrink:0;">✅ Stoktan Düşülecek Ürünler (Yeterli Stoku Olanlar):</div>`;
+    if (validOutItems.length === 0) {
+        html += `<div style="font-size:10px; color:var(--muted); margin-bottom:8px; padding:4px; flex-shrink:0;">Çıkış yapılacak geçerli ürün bulunamadı.</div>`;
+    } else {
+        html += validOutItems.map((item, idx) => `
+            <div style="display:flex; justify-content:space-between; align-items:center; background:var(--card); padding:5px 8px; border-radius:6px; border:1.5px solid var(--border); margin-bottom:4px; flex-shrink:0;">
+                <div>
+                    <b style="font-size:11px; color:var(--text);">${item.prodName}</b>
+                    <span style="font-size:9px; color:var(--muted); display:block;">${item.group}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:11px; background:rgba(239,68,68,0.12); color:var(--danger); padding:2px 8px; border-radius:4px; font-weight:800;">-${item.miktar} Adet</span>
+                    <button type="button" class="btn btn-danger btn-sm" style="height:22px; width:22px; padding:0; font-size:10px;" onclick="removeValidOutItem(${idx})" title="Listeden Çıkar">×</button>
+                </div>
+            </div>
+        `).join('');
+    } if (true) {
+        html += `
+        <div style="margin-top:8px; border:1.5px solid var(--warning); border-radius:8px; overflow:hidden; background:var(--card); flex-shrink:0;">
+            <div style="background:rgba(245,158,11,0.1); padding:8px 10px; font-size:10px; font-weight:800; color:var(--warning); cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleAccordion('insufficient_acc_body')">
+                <span>⚠️ Yetersiz Stok Olan Ürünler (${insufficientOutItems.length})</span>
+                <span id="insufficient_acc_arrow">▼</span>
+            </div>
+            <div id="insufficient_acc_body" style="display:none; padding:6px; flex-direction:column; gap:4px; background:var(--bg);">
+                ${insufficientOutItems.map(item => `
+                    <div style="background:var(--card); padding:5px 8px; border-radius:6px; border:1.5px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <b style="font-size:11px; color:var(--text);">${item.prodName} (${item.miktar} Adet)</b>
+                            <span style="font-size:9px; color:var(--warning); display:block;">Yetersiz stok (Mevcut: ${item.stock})</span>
+                        </div>
+                        <span style="font-size:9px; background:rgba(245,158,11,0.15); color:var(--warning); padding:2px 6px; border-radius:4px; font-weight:bold;">Atlandı</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>`;
+    } if (true) {
+        html += `
+        <div style="margin-top:6px; border:1.5px solid var(--danger); border-radius:8px; overflow:hidden; background:var(--card); flex-shrink:0;">
+            <div style="background:rgba(239,68,68,0.1); padding:8px 10px; font-size:10px; font-weight:800; color:var(--danger); cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleAccordion('missing_acc_body')">
+                <span>❌ Bu Depoda / Firmada Bulunmayan Ürünler (${missingOutItems.length})</span>
+                <span id="missing_acc_arrow">▼</span>
+            </div>
+            <div id="missing_acc_body" style="display:none; padding:6px; flex-direction:column; gap:4px; background:var(--bg);">
+                ${missingOutItems.map(item => `
+                    <div style="background:var(--card); padding:5px 8px; border-radius:6px; border:1.5px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <b style="font-size:11px; color:var(--text);">${item.prodName} (${item.miktar} Adet)</b>
+                            <span style="font-size:9px; color:var(--danger); display:block;">Bu depoda bu ürün bulunmuyor</span>
+                        </div>
+                        <span style="font-size:9px; background:rgba(239,68,68,0.15); color:var(--danger); padding:2px 6px; border-radius:4px; font-weight:bold;">Atlandı</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>`;
+    }
+
+    container.innerHTML = html;
+    document.getElementById('aiCameraLoadingArea').style.display = 'none';
+    document.getElementById('aiCameraContentArea').style.display = 'block';
+}
+
+
+
+function removeValidOutItem(idx) { validOutItems.splice(idx, 1); renderAiOutParsedList(); }
+
+
+
+async function confirmAndCommitAiStock() {
+    if (validOutItems.length === 0) { showToast("Bilgi", "Düşülecek ürün yok. Yetersiz/Bulunamayan listesine bakın.", true); return; }
+    let dateStr = formatTrDate('aiCameraDateInput');
+    let userSignature = getUserSignature();
+    let targetDepot = getDepotValue('unifiedAiDepotSel', currentViewDepot || '');
+    let newTransactions = validOutItems.map(item => ({
+        date: dateStr, depot: targetDepot, prodId: item.prodId, prodName: item.prodName, type: 'ÇIKIŞ', qty: item.miktar, desc: `📸 AI Okut Çıkış [${userSignature}]`
+    }));
+    commitAiTransactions('aiCamera', newTransactions, () => { validOutItems = []; insufficientOutItems = []; missingOutItems = []; }, `${validOutItems.length} kalem ürün düşüldü!`);
+}
+
+
+
+async function sendInvoiceImageToGeminiVision(base64Data, targetDepot, mimeType = 'image/jpeg') {
+    let prompt = "Bu bir fatura/irsaliye fotoğrafı. TÜM ürün kalemlerini ve sevk/giriş adetlerini EKSİKSİZ oku. KURALLAR: (1) Tablodaki HER ürün satırını oku, atlama yapma; sayfada kaç kalem varsa hepsini al. (2) Ürün adı = mal/hizmet açıklaması sütunu, miktar = sevk edilen/giren miktar (adet). (3) TOPLAM, ARA TOPLAM, KDV, İSKONTO, TUTAR, YEKÜN gibi para satırlarını ALMA. (4) Ürün adını faturada yazdığı gibi koru; Türkçe karakterleri ve ölçü birimlerini (CL, ML, KG) muhafaza et. (5) Emin olamadığın adı en yakın okunuşla yaz ama satırı ATLAMA. Yalnızca şu formatta geçerli bir JSON array olarak yanıt ver, başka hiçbir açıklama, metin veya markdown (kesinlikle kod bloğu ve backtick kullanma) ekleme:\n[{\"isim\": \"Kola 330ml\", \"miktar\": 24}, {\"isim\": \"Efes Pilsen\", \"miktar\": 12}]";
+    try {
+        let rawItems = await sendWithRetry(base64Data, prompt, mimeType);
+        processParsedItemsForInvoice(rawItems, targetDepot);
+    } catch (error) {
+        closeAiResultModal('aiInvoice');
+        showToast("AI Hatası", "Fatura okunamadı: " + error.message, true);
+    }
+}
+
+
+
+function processParsedItemsForInvoice(rawItems, targetDepot) {
+    validInvoiceItems = []; missingInvoiceItems = [];
+    rawItems.forEach(item => {
+        let isim = sanitizeText(item.isim || "");
+        let miktar = parseInputFloat(item.miktar);
+        let foundProd = findProductByName(isim);
+        if (foundProd) {
+            let isAllowed = (!foundProd.allowedDepots || foundProd.allowedDepots.includes(targetDepot));
+            if (isAllowed) {
+                validInvoiceItems.push({ prodId: foundProd.id, prodName: foundProd.name, group: foundProd.group, miktar: miktar });
+            } else {
+                missingInvoiceItems.push({ prodId: foundProd.id, prodName: foundProd.name, group: foundProd.group, miktar: miktar, existsInSystem: true, existingCategories: freshCategoryOptions(), reason: "Bu depoda bu ürün bulunmuyor" });
+            }
+        } else {
+            missingInvoiceItems.push({ prodId: 'p_' + Date.now() + '_' + Math.floor(Math.random()*1000), prodName: isim, group: "", miktar: miktar, existsInSystem: false, existingCategories: freshCategoryOptions(), reason: "Bu depoda bu ürün bulunmuyor" });
+        }
+    });
+    renderAiInvoiceParsedList();
+}
+
+
+
+function renderAiInvoiceParsedList() {
+    let container = document.getElementById('aiInvoiceParsedList');
+    if (!container) return;
+    
+    let html = '';
+
+    html += `<div style="font-size:10px; font-weight:800; color:var(--primary); margin-bottom:4px; flex-shrink:0;">📦 Bu Depoda Mevcut Olan Ürünler (Girişe Hazır):</div>`;
+    if (validInvoiceItems.length === 0) {
+        html += `<div style="font-size:10px; color:var(--muted); margin-bottom:8px; padding:4px; flex-shrink:0;">Mevcut depo için fatura ürünü bulunamadı.</div>`;
+    } else {
+        html += validInvoiceItems.map((item, idx) => `
+            <div style="display:flex; justify-content:space-between; align-items:center; background:var(--card); padding:5px 8px; border-radius:6px; border:1.5px solid var(--border); margin-bottom:4px; flex-shrink:0;">
+                <div>
+                    <b style="font-size:11px; color:var(--text);">${item.prodName}</b>
+                    <span style="font-size:9px; color:var(--muted); display:block;">${item.group}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:11px; background:rgba(16,185,129,0.12); color:var(--success); padding:2px 8px; border-radius:4px; font-weight:800;">+${item.miktar} Adet</span>
+                    <button type="button" class="btn btn-danger btn-sm" style="height:22px; width:22px; padding:0; font-size:10px;" onclick="removeValidInvoiceItem(${idx})" title="Listeden Çıkar">×</button>
+                </div>
+            </div>
+        `).join('');
+    } if (true) {
+        html += `
+        <div style="margin-top:8px; border:1.5px solid var(--danger); border-radius:8px; overflow:hidden; background:var(--card); flex-shrink:0;">
+            <div style="background:rgba(239,68,68,0.1); padding:8px 10px; font-size:10px; font-weight:800; color:var(--danger); cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleAccordion('invoice_missing_acc_body')">
+                <span>❌ Bu Depoda / Firmada Bulunmayan Ürünler (${missingInvoiceItems.length})</span>
+                <span id="invoice_missing_acc_arrow">▼</span>
+            </div>
+            <div id="invoice_missing_acc_body" style="display:none; padding:6px; flex-direction:column; gap:6px; background:var(--bg);">
+                ${missingInvoiceItems.map((item, idx) => `
+                    <div style="background:var(--card); padding:8px; border-radius:8px; border:1.5px solid var(--border); display:flex; flex-direction:column; gap:5px;" id="missing_card_${idx}" onclick="event.stopPropagation()">
+                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin:0; flex:1;" onclick="event.stopPropagation()">
+                                <input type="checkbox" class="missing-invoice-chk" data-index="${idx}" onchange="toggleMissingCheckbox(${idx}, this.checked)" style="width:14px; height:14px; accent-color:var(--primary);">
+                                <div>
+                                    <b style="font-size:11px; color:var(--text);">${item.prodName} (${item.miktar} Adet)</b>
+                                    <span style="font-size:9px; color:var(--danger); display:block;">Bu depoda bu ürün bulunmuyor</span>
+                                </div>
+                            </label>
+                        </div>
+                        <div id="missing_fields_${idx}" style="display:none; flex-direction:column; gap:5px; background:var(--bg); padding:6px; border-radius:6px; border:1.5px solid var(--border);">
+                            <div style="display:flex; gap:5px;">
+                                <select id="missing_cat_sel_${idx}" style="flex:1; height:28px; font-size:10px; padding:0 4px;" onchange="checkInvoiceGroupChange(${idx})">
+                                    ${item.existingCategories}
+                                </select>
+                                <input type="text" id="missing_new_cat_${idx}" placeholder="Yeni Kategori Adı" style="flex:1; height:28px; font-size:10px; display:none;">
+                            </div>
+                            <div style="display:flex; gap:5px; align-items:center;">
+                                <span style="font-size:9px; color:var(--danger); font-weight:bold;">Kritik Sınır:</span>
+                                <input type="number" id="missing_crit_${idx}" value="0" step="any" style="width:60px; height:26px; font-size:10px; text-align:center;">
+                                <button type="button" id="missing_btn_${idx}" class="btn btn-success btn-sm" style="flex:1; height:26px; font-size:9px;" onclick="addCheckedMissingItemToQueue(${idx})" disabled style="opacity:0.5; cursor:not-allowed;">➕ Üste Ekle</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>`;
+    }
+
+    container.innerHTML = html;
+    document.getElementById('aiInvoiceLoadingArea').style.display = 'none';
+    document.getElementById('aiInvoiceContentArea').style.display = 'block';
+}
+
+
+
+function toggleMissingCheckbox(idx, isChecked) {
+    let fields = document.getElementById(`missing_fields_${idx}`);
+    let btn = document.getElementById(`missing_btn_${idx}`);
+    if (fields) fields.style.display = isChecked ? 'flex' : 'none';
+    if (btn) { btn.disabled = !isChecked; btn.style.opacity = isChecked ? '1' : '0.5'; btn.style.cursor = isChecked ? 'pointer' : 'not-allowed'; }
+}
+
+
+
+function checkInvoiceGroupChange(idx) {
+    let sel = document.getElementById(`missing_cat_sel_${idx}`);
+    let newInp = document.getElementById(`missing_new_cat_${idx}`);
+    if (!sel || !newInp) return;
+    if (sel.value === '__NEW__') { newInp.style.display = 'block'; newInp.focus(); }
+    else { newInp.style.display = 'none'; newInp.value = ''; }
+}
+
+
+
+function removeValidInvoiceItem(idx) { validInvoiceItems.splice(idx, 1); renderAiInvoiceParsedList(); }
+
+
+
+function addCheckedMissingItemToQueue(idx) {
+    let item = missingInvoiceItems[idx];
+    if (!item) return;
+    let sel = document.getElementById(`missing_cat_sel_${idx}`);
+    let newInp = document.getElementById(`missing_new_cat_${idx}`);
+    let critInp = document.getElementById(`missing_crit_${idx}`);
+    let selVal = sel ? sel.value : '';
+    if (!selVal) { showToast("Eksik", "Lütfen bir kategori seçin.", true); return; }
+    let group = (selVal === '__NEW__' && newInp) ? sanitizeText(newInp.value.trim().toUpperCase()) : selVal;
+    if (!group) { showToast("Eksik", "Lütfen kategori adını girin.", true); return; }
+    let criticalVal = critInp ? parseInputFloat(critInp.value) : 0;
+    let cleanName = sanitizeText(item.prodName);
+    let prod = products.find(p => p.id === item.prodId || (p.name && turkishNormalize(p.name) === turkishNormalize(cleanName)));
+    let targetProdId = prod ? prod.id : item.prodId;
+    validInvoiceItems.push({ prodId: targetProdId, prodName: cleanName, group: group, criticalVal: criticalVal, miktar: item.miktar, isNewOrMissing: true, originalMissingItem: item });
+    missingInvoiceItems.splice(idx, 1);
+    renderAiInvoiceParsedList();
+    showToast("Eklendi", `${cleanName} üst listeye taşındı.`);
+}
+
+
+
+async function confirmAndCommitInvoiceStock() {
+    let checkboxes = document.querySelectorAll('.missing-invoice-chk:checked');
+    for (let chk of checkboxes) {
+        let idx = parseInt(chk.getAttribute('data-index'), 10);
+        if (!isNaN(idx) && missingInvoiceItems[idx]) {
+            let sel = document.getElementById(`missing_cat_sel_${idx}`);
+            if (sel && !sel.value) { showToast("Eksik", "İşaretlenen ürünler için kategori seçmelisiniz.", true); return; }
+            addCheckedMissingItemToQueue(idx);
+        }
+    }
+    if (!validInvoiceItems || validInvoiceItems.length === 0) { showToast("Bilgi", "Giriş yapılacak ürün kalmadı.", true); return; }
+    let dateStr = formatTrDate('aiInvoiceDateInput');
+    let userSignature = getUserSignature();
+    let targetDepot = getDepotValue('unifiedAiDepotSel', currentViewDepot || '');
+    let newTransactions = [];
+    for (let item of validInvoiceItems) {
+        let prod = products.find(p => p.id === item.prodId || (p.name && turkishNormalize(p.name) === turkishNormalize(item.prodName)));
+        if (prod) {
+            prod.group = item.group || prod.group;
+            if (!prod.allowedDepots) prod.allowedDepots = [...depots];
+            if (!prod.allowedDepots.includes(targetDepot)) prod.allowedDepots.push(targetDepot);
+            if (!prod.openings) prod.openings = {};
+            if (prod.openings[targetDepot] === undefined) prod.openings[targetDepot] = 0;
+            if (!prod.criticals) prod.criticals = {};
+            if (item.criticalVal !== undefined) prod.criticals[targetDepot] = item.criticalVal;
+        } else {
+            let openingsObj = {}, criticalsObj = {};
+            depots.forEach(d => { openingsObj[d] = 0; criticalsObj[d] = 0; });
+            criticalsObj[targetDepot] = item.criticalVal || 0;
+            prod = { id: item.prodId || ('p_' + Date.now() + '_' + Math.floor(Math.random()*1000)), group: sanitizeText(item.group || "GENEL"), name: item.prodName, openings: openingsObj, criticals: criticalsObj, allowedDepots: [targetDepot], active: true };
+            products.push(prod);
+        }
+        newTransactions.push({ date: dateStr, depot: targetDepot, prodId: prod.id, prodName: prod.name, type: 'GİRİŞ', qty: item.miktar, desc: `🧾 Fatura / İrsaliye AI Giriş [${userSignature}]` });
+    }
+    await saveProductsToCloud();
+    commitAiTransactions('aiInvoice', newTransactions, () => { validInvoiceItems = []; missingInvoiceItems = []; }, `${validInvoiceItems.length} kalem ürün giriş yapıldı!`);
+}
+
+
+
+async function sendTransferImageToGeminiVision(base64Data, srcDepot, tgtDepot, mimeType = 'image/jpeg') {
+    let prompt = "Bu bir ürün/miktar listesi fotoğrafı. TÜM ürünleri ve adetlerini EKSİKSİZ oku. KURALLAR: (1) Listedeki HER satırı oku, atlama yapma. (2) Ürün adını ve yanındaki miktarı/adet sayısını eşleştir. (3) Toplam/tutar satırlarını ALMA. (4) Ürün adını yazıldığı gibi koru; Türkçe karakterleri muhafaza et. (5) Emin olamadığın adı en yakın okunuşla yaz ama satırı ATLAMA. Yalnızca şu formatta geçerli bir JSON array olarak yanıt ver, başka hiçbir açıklama, metin veya markdown (kesinlikle kod bloğu ve backtick kullanma) ekleme:\n[{\"isim\": \"Trio 37,5 CL Beyaz\", \"miktar\": 1}, {\"isim\": \"Tuborg 50 CL\", \"miktar\": 6}]";
+    try {
+        let rawItems = await sendWithRetry(base64Data, prompt, mimeType);
+        processParsedItemsForTransfer(rawItems, srcDepot, tgtDepot);
+    } catch (error) {
+        closeAiResultModal('aiTransfer');
+        showToast("AI Hatası", "Transfer listesi okunamadı: " + error.message, true);
+    }
+}
+
+
+
+function processParsedItemsForTransfer(rawItems, srcDepot, tgtDepot) {
+    validTransferItems = []; insufficientTransferItems = []; activationTransferItems = []; missingSourceTransferItems = [];
+    rawItems.forEach(item => {
+        let isim = sanitizeText(item.isim || "");
+        let miktar = parseInputFloat(item.miktar);
+        let foundProd = findProductByName(isim);
+        if (foundProd) {
+            let isAllowedSource = (!foundProd.allowedDepots || foundProd.allowedDepots.includes(srcDepot));
+            if (isAllowedSource) {
+                let currentStock = getCurrentStock(foundProd.id, srcDepot);
+                if (currentStock >= miktar) {
+                    let isAllowedTarget = (!foundProd.allowedDepots || foundProd.allowedDepots.includes(tgtDepot));
+                    if (isAllowedTarget) {
+                        validTransferItems.push({ prodId: foundProd.id, prodName: foundProd.name, group: foundProd.group, miktar: miktar });
+                    } else {
+                        activationTransferItems.push({ prodId: foundProd.id, prodName: foundProd.name, group: foundProd.group, miktar: miktar, stock: currentStock });
+                    }
+                } else {
+                    insufficientTransferItems.push({ prodName: foundProd.name, miktar: miktar, stock: currentStock });
+                }
+            } else {
+                missingSourceTransferItems.push({ prodName: foundProd.name, miktar: miktar });
+            }
+        } else {
+            missingSourceTransferItems.push({ prodName: isim, miktar: miktar });
+        }
+    });
+    renderAiTransferParsedList();
+}
+
+
+
+function renderAiTransferParsedList() {
+    let container = document.getElementById('aiTransferParsedList');
+    if (!container) return;
+
+    let html = '';
+
+    html += `<div style="font-size:10px; font-weight:800; color:var(--transfer); margin-bottom:4px; flex-shrink:0;">🔄 Transfer Edilecek Ürünler (Hazır):</div>`;
+    if (validTransferItems.length === 0) {
+        html += `<div style="font-size:10px; color:var(--muted); margin-bottom:8px; padding:4px; flex-shrink:0;">Transfer edilecek geçerli ürün bulunamadı.</div>`;
+    } else {
+        html += validTransferItems.map((item, idx) => `
+            <div style="display:flex; justify-content:space-between; align-items:center; background:var(--card); padding:5px 8px; border-radius:6px; border:1.5px solid var(--border); margin-bottom:4px; flex-shrink:0;">
+                <div>
+                    <b style="font-size:11px; color:var(--text);">${item.prodName}</b>
+                    <span style="font-size:9px; color:var(--muted); display:block;">${item.group}${item.isActivation ? ' • 🔓 Hedefte Aktifleşecek' : ''}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:11px; background:rgba(139,92,246,0.12); color:var(--transfer); padding:2px 8px; border-radius:4px; font-weight:800;">⇄${item.miktar} Adet</span>
+                    <button type="button" class="btn btn-danger btn-sm" style="height:22px; width:22px; padding:0; font-size:10px;" onclick="removeValidTransferItem(${idx})" title="Listeden Çıkar">×</button>
+                </div>
+            </div>
+        `).join('');
+    } if (true) {
+        html += `
+        <div style="margin-top:8px; border:1.5px solid var(--transfer); border-radius:8px; overflow:hidden; background:var(--card); flex-shrink:0;">
+            <div style="background:rgba(139,92,246,0.1); padding:8px 10px; font-size:10px; font-weight:800; color:var(--transfer); cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleAccordion('transfer_activation_acc_body')">
+                <span>🔓 Hedef Depoda Pasif - Aktifleştirilecek (${activationTransferItems.length})</span>
+                <span id="transfer_activation_acc_arrow">▼</span>
+            </div>
+            <div id="transfer_activation_acc_body" style="display:none; padding:6px; flex-direction:column; gap:6px; background:var(--bg);">
+                ${activationTransferItems.map((item, idx) => `
+                    <div style="background:var(--card); padding:8px; border-radius:8px; border:1.5px solid var(--border); display:flex; flex-direction:column; gap:5px;" onclick="event.stopPropagation()">
+                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin:0; flex:1;" onclick="event.stopPropagation()">
+                                <input type="checkbox" class="transfer-activation-chk" data-index="${idx}" onchange="toggleTransferActivationCheckbox(${idx}, this.checked)" style="width:14px; height:14px; accent-color:var(--transfer);">
+                                <div>
+                                    <b style="font-size:11px; color:var(--text);">${item.prodName} (${item.miktar} Adet)</b>
+                                    <span style="font-size:9px; color:var(--transfer); display:block;">Kategori: ${item.group} • ${aiTransferTargetDepot} deposunda bulunmuyor</span>
+                                </div>
+                            </label>
+                        </div>
+                        <div id="transfer_activation_fields_${idx}" style="display:none; flex-direction:column; gap:5px; background:var(--bg); padding:6px; border-radius:6px; border:1.5px solid var(--border);">
+                            <div style="display:flex; gap:5px; align-items:center;">
+                                <span style="font-size:9px; color:var(--transfer); font-weight:bold;">Kritik Sınır (${aiTransferTargetDepot}):</span>
+                                <input type="number" id="transfer_activation_crit_${idx}" value="0" step="any" style="width:60px; height:26px; font-size:10px; text-align:center;">
+                                <button type="button" id="transfer_activation_btn_${idx}" class="btn btn-sm" style="flex:1; height:26px; font-size:9px; background:var(--transfer); box-shadow:0 2px 6px rgba(139,92,246,0.25); opacity:0.5; cursor:not-allowed;" onclick="addCheckedTransferItemToQueue(${idx})" disabled>➕ Üste Ekle</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>`;
+    }
+
+    if (insufficientTransferItems.length > 0) {
+        html += `
+        <div style="margin-top:6px; border:1.5px solid var(--warning); border-radius:8px; overflow:hidden; background:var(--card); flex-shrink:0;">
+            <div style="background:rgba(245,158,11,0.1); padding:8px 10px; font-size:10px; font-weight:800; color:var(--warning); cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleAccordion('transfer_insufficient_acc_body')">
+                <span>⚠️ Kaynak Depoda Yetersiz Stok (${insufficientTransferItems.length})</span>
+                <span id="transfer_insufficient_acc_arrow">▼</span>
+            </div>
+            <div id="transfer_insufficient_acc_body" style="display:none; padding:6px; flex-direction:column; gap:4px; background:var(--bg);">
+                ${insufficientTransferItems.map(item => `
+                    <div style="background:var(--card); padding:5px 8px; border-radius:6px; border:1.5px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <b style="font-size:11px; color:var(--text);">${item.prodName} (${item.miktar} Adet)</b>
+                            <span style="font-size:9px; color:var(--warning); display:block;">${aiTransferSourceDepot} deposunda yetersiz stok (Mevcut: ${item.stock})</span>
+                        </div>
+                        <span style="font-size:9px; background:rgba(245,158,11,0.15); color:var(--warning); padding:2px 6px; border-radius:4px; font-weight:bold;">Atlandı</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>`;
+    }
+
+    if (missingSourceTransferItems.length > 0) {
+        html += `
+        <div style="margin-top:6px; border:1.5px solid var(--danger); border-radius:8px; overflow:hidden; background:var(--card); flex-shrink:0;">
+            <div style="background:rgba(239,68,68,0.1); padding:8px 10px; font-size:10px; font-weight:800; color:var(--danger); cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleAccordion('transfer_missing_acc_body')">
+                <span>❌ Kaynak Depoda Bulunmuyor (${missingSourceTransferItems.length})</span>
+                <span id="transfer_missing_acc_arrow">▼</span>
+            </div>
+            <div id="transfer_missing_acc_body" style="display:none; padding:6px; flex-direction:column; gap:4px; background:var(--bg);">
+                ${missingSourceTransferItems.map(item => `
+                    <div style="background:var(--card); padding:5px 8px; border-radius:6px; border:1.5px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <b style="font-size:11px; color:var(--text);">${item.prodName} (${item.miktar} Adet)</b>
+                            <span style="font-size:9px; color:var(--danger); display:block;">${aiTransferSourceDepot} deposunda bu ürün yok</span>
+                        </div>
+                        <span style="font-size:9px; background:rgba(239,68,68,0.15); color:var(--danger); padding:2px 6px; border-radius:4px; font-weight:bold;">Atlandı</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>`;
+    }
+
+    container.innerHTML = html;
+    document.getElementById('aiTransferLoadingArea').style.display = 'none';
+    document.getElementById('aiTransferContentArea').style.display = 'block';
+}
+
+
+
+function toggleTransferActivationCheckbox(idx, isChecked) {
+    let fields = document.getElementById(`transfer_activation_fields_${idx}`);
+    let btn = document.getElementById(`transfer_activation_btn_${idx}`);
+    if (fields) fields.style.display = isChecked ? 'flex' : 'none';
+    if (btn) { btn.disabled = !isChecked; btn.style.opacity = isChecked ? '1' : '0.5'; btn.style.cursor = isChecked ? 'pointer' : 'not-allowed'; }
+}
+
+
+
+function removeValidTransferItem(idx) { validTransferItems.splice(idx, 1); renderAiTransferParsedList(); }
+
+
+
+function addCheckedTransferItemToQueue(idx) {
+    let item = activationTransferItems[idx];
+    if (!item) return;
+    let critInp = document.getElementById(`transfer_activation_crit_${idx}`);
+    let criticalVal = critInp ? parseInputFloat(critInp.value) : 0;
+    validTransferItems.push({ prodId: item.prodId, prodName: item.prodName, group: item.group, miktar: item.miktar, isActivation: true, criticalVal: criticalVal });
+    activationTransferItems.splice(idx, 1);
+    renderAiTransferParsedList();
+    showToast("Eklendi", `${item.prodName} üst listeye taşındı.`);
+}
+
+
+
+async function confirmAndCommitAiTransfer() {
+    let checkboxes = document.querySelectorAll('.transfer-activation-chk:checked');
+    for (let chk of checkboxes) {
+        let idx = parseInt(chk.getAttribute('data-index'), 10);
+        if (!isNaN(idx) && activationTransferItems[idx]) { addCheckedTransferItemToQueue(idx); }
+    }
+    if (!validTransferItems || validTransferItems.length === 0) { showToast("Bilgi", "Transfer edilecek ürün kalmadı.", true); return; }
+    let srcDepot = getDepotValue('uniTransSrcDepot', '');
+    let tgtDepot = getDepotValue('uniTransTgtDepot', '');
+    if (!srcDepot || !tgtDepot) { showToast("Hata", "Depo bilgisi bulunamadı.", true); return; }
+    let dateStr = formatTrDate('aiTransferDateInput');
+    let userSignature = getUserSignature();
+    let newTransactions = [];
+    let productsChanged = false;
+    for (let item of validTransferItems) {
+        let prod = products.find(p => p.id === item.prodId);
+        if (!prod) continue;
+        if (item.isActivation) {
+            if (!prod.allowedDepots) prod.allowedDepots = [...depots];
+            if (!prod.allowedDepots.includes(tgtDepot)) prod.allowedDepots.push(tgtDepot);
+            if (!prod.openings) prod.openings = {};
+            if (prod.openings[tgtDepot] === undefined) prod.openings[tgtDepot] = 0;
+            if (!prod.criticals) prod.criticals = {};
+            prod.criticals[tgtDepot] = item.criticalVal !== undefined ? item.criticalVal : 0;
+            productsChanged = true;
+        }
+        newTransactions.push({ date: dateStr, depot: srcDepot, prodId: prod.id, prodName: prod.name, type: 'TRANSFER', qty: item.miktar, desc: `➔ ${tgtDepot} 📸 AI Transfer [${userSignature}]` });
+        newTransactions.push({ date: dateStr, depot: tgtDepot, prodId: prod.id, prodName: prod.name, type: 'TRANSFER', qty: item.miktar, desc: `⬅ ${srcDepot} 📸 AI Transfer [${userSignature}]` });
+    }
+    if (productsChanged) await saveProductsToCloud();
+    commitAiTransactions('aiTransfer', newTransactions, () => { validTransferItems = []; insufficientTransferItems = []; activationTransferItems = []; missingSourceTransferItems = []; }, `${validTransferItems.length} kalem ürün ${srcDepot} ➔ ${tgtDepot} transfer edildi!`);
+}

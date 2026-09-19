@@ -1,0 +1,121 @@
+// ============================================================
+// ERROR CATCHER - Gelismis hata yakalayici (bagimsiz, en once yuklenir)
+// Amac: JS hatalarini ekranda net gostermek + kopyalanabilir rapor.
+// Sessiz cokmeyi bitirir; hangi dosya/satir oldugunu soyler.
+// ============================================================
+(function () {
+  if (window.__errCatcherLoaded) return;
+  window.__errCatcherLoaded = true;
+
+  var ERRORS = [];        // toplanan hatalar
+  var MAX = 20;           // en fazla kac hata saklanir
+  var boxEl = null;
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function fmtTime() {
+    try {
+      var d = new Date();
+      function p(n) { return String(n).padStart(2, '0'); }
+      return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+    } catch (e) { return ''; }
+  }
+
+  function shortSrc(url, line, col) {
+    var f = '';
+    try { f = String(url || '').split('/').pop().split('?')[0]; } catch (e) { f = String(url || ''); }
+    if (!f) return '';
+    return f + (line ? ':' + line : '') + (col ? ':' + col : '');
+  }
+
+  function ensureBox() {
+    if (boxEl && document.body.contains(boxEl)) return boxEl;
+    boxEl = document.createElement('div');
+    boxEl.id = 'jsErrorBox';
+    boxEl.style.cssText = [
+      'position:fixed', 'left:10px', 'right:10px', 'bottom:14px', 'z-index:2147483647',
+      'background:#450a0a', 'color:#fee2e2', 'padding:0', 'border-radius:12px',
+      'font-size:11px', 'line-height:1.45', 'box-shadow:0 10px 30px rgba(0,0,0,.55)',
+      'max-height:45vh', 'overflow:hidden', 'border:2px solid #ef4444',
+      'font-family:ui-monospace, Menlo, Consolas, monospace'
+    ].join(';');
+    boxEl.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:#7f1d1d;">' +
+        '<b style="font-size:11px;">⚠️ Hata Yakalandı <span id="jsErrCount" style="opacity:.8;font-weight:600;"></span></b>' +
+        '<div style="display:flex;gap:6px;">' +
+          '<button id="jsErrCopy" style="background:#fff;color:#7f1d1d;border:none;border-radius:6px;padding:3px 9px;font-weight:800;cursor:pointer;font-size:10px;">Kopyala</button>' +
+          '<button id="jsErrMin" style="background:transparent;color:#fff;border:1.5px solid #fff;border-radius:6px;padding:3px 9px;font-weight:800;cursor:pointer;font-size:10px;">Küçült</button>' +
+          '<button id="jsErrClose" style="background:#fff;color:#7f1d1d;border:none;border-radius:6px;padding:3px 9px;font-weight:800;cursor:pointer;font-size:10px;">Kapat</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="jsErrorBody" style="padding:8px 10px;overflow:auto;max-height:36vh;white-space:pre-wrap;word-break:break-word;"></div>';
+
+    (document.body || document.documentElement).appendChild(boxEl);
+
+    boxEl.querySelector('#jsErrClose').onclick = function () {
+      ERRORS = []; boxEl.remove(); boxEl = null;
+    };
+    boxEl.querySelector('#jsErrMin').onclick = function () {
+      var b = boxEl.querySelector('#jsErrorBody');
+      b.style.display = (b.style.display === 'none') ? 'block' : 'none';
+    };
+    boxEl.querySelector('#jsErrCopy').onclick = function () {
+      try {
+        var txt = ERRORS.map(function (e, i) {
+          return (i + 1) + '. [' + e.time + '] ' + (e.src ? e.src + ' — ' : '') + e.msg;
+        }).join('\n');
+        navigator.clipboard.writeText(txt).then(function () {
+          var btn = boxEl.querySelector('#jsErrCopy');
+          if (btn) { btn.textContent = 'Kopyalandı ✓'; setTimeout(function () { btn.textContent = 'Kopyala'; }, 1200); }
+        }).catch(function () {});
+      } catch (e) {}
+    };
+    return boxEl;
+  }
+
+  function showError(msg, src) {
+    try {
+      var entry = { msg: String(msg), src: String(src || ''), time: fmtTime() };
+      ERRORS.push(entry);
+      if (ERRORS.length > MAX) ERRORS.shift();
+      if (!document.body) { setTimeout(function () { showError(msg, src); }, 200); return; }
+      var box = ensureBox();
+      var body = box.querySelector('#jsErrorBody');
+      var cnt = box.querySelector('#jsErrCount');
+      if (cnt) cnt.textContent = '(' + ERRORS.length + ')';
+      var line = document.createElement('div');
+      line.style.cssText = 'padding:6px 0;border-top:1px dashed rgba(255,255,255,.25);';
+      line.innerHTML =
+        '<div style="opacity:.75;font-size:9px;">' + entry.time + (src ? ' • ' + esc(src) : '') + '</div>' +
+        '<div style="margin-top:2px;">' + esc(entry.msg) + '</div>';
+      body.appendChild(line);
+    } catch (e) {
+      try { console.error('[depo-takip] hata gosterilemedi:', e, msg); } catch (_) {}
+    }
+  }
+
+  // Modal/acilir pencere acildiginda kutuyu en uste tasi (arkada kalmasin)
+  try {
+    var mo = new MutationObserver(function () {
+      try { if (boxEl && document.body.contains(boxEl)) document.body.appendChild(boxEl); } catch (e) {}
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: false });
+  } catch (e) {}
+
+  // Global erisim (baska dosyalar da cagirabilsin)
+  window.showAppError = showError;
+
+  window.addEventListener('error', function (ev) {
+    var m = ev && ev.message ? ev.message : 'Bilinmeyen hata';
+    var s = shortSrc(ev && ev.filename, ev && ev.lineno, ev && ev.colno);
+    showError(m, s);
+  });
+
+  window.addEventListener('unhandledrejection', function (ev) {
+    var r = ev && ev.reason ? (ev.reason.message || ev.reason) : 'Promise hatasi';
+    showError(String(r), 'promise');
+  });
+})();

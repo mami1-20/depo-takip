@@ -1,0 +1,265 @@
+// ============================================================
+// COMPANY & USER ADMIN - Super admin, firma ve kullanici yonetimi
+// ============================================================
+
+
+
+function confirmDeleteAllProducts() {
+if (!currentUser || currentUser.role !== 'admin') {
+showToast("Yetki Yok", "Bu işlem için admin yetkisi gerekiyor.", true);
+return;
+}
+products = [];
+transactions = [];
+saveProductsToCloud();
+saveTransactionsToCloud();
+renderStock();
+filterReport(false);
+showToast("Başarılı", "Tüm ürünler ve geçmiş raporlar silindi.");
+}
+
+
+
+async function confirmDeleteCompany() {
+if (!currentUser || currentUser.role !== 'admin') {
+showToast("Yetki Yok", "Bu işlem için admin yetkisi gerekiyor.", true);
+return;
+}
+let compToDelete = currentCompany;
+showToast("Siliniyor...", "Firma ve bağlı veriler kaldırılıyor...");
+try {
+let { data: comp } = await _supabase.from('companies').select('id').ilike('name', compToDelete).maybeSingle();
+if (comp && comp.id) {
+// Foreign key cascade: company silinince profiles/config/products/product_depot/transactions silinir.
+await _supabase.from('companies').delete().eq('id', comp.id);
+}
+if (window.__companyIdCache) delete window.__companyIdCache[compToDelete];
+if (window.__companyNameMap) delete window.__companyNameMap[comp.id];
+closeModal('adminPasswordPromptModal');
+showToast("Başarılı", "Firma ve bağlı tüm veriler silindi.");
+logout();
+} catch (err) {
+showToast("Hata", "Firma silinirken bir hata oluştu.", true);
+}
+}
+
+async function createCompanyBySuperAdmin() {
+if (!currentUser || !currentUser.isSuperAdmin) {
+showToast("Yetki Yok", "Yalnızca süper admin firma açabilir.", true);
+return;
+}
+let compName = sanitizeText(document.getElementById('saCompanyInput').value.trim().toUpperCase());
+let uname = sanitizeText(document.getElementById('saUserInput').value.trim().toLowerCase());
+let upin = document.getElementById('saPinInput').value.trim();
+let semail = (document.getElementById('saEmailInput') ? document.getElementById('saEmailInput').value.trim().toLowerCase() : '');
+
+if (!compName || !uname || !upin) {
+showToast("Eksik", "Lütfen tüm alanları girin.", true);
+return;
+}
+if (upin.length < 6) { showToast("Şifre Kısa", "Şifre en az 6 karakter olmalıdır.", true); return; }
+if (!semail) {
+semail = uname + '@' + turkishNormalize(compName).replace(/[^a-z0-9]/g, '') + '.local';
+}
+
+try {
+let { data: companyId, error: cErr } = await _supabase.rpc('create_company', { p_name: compName });
+if (cErr) { showToast("Hata", cErr.message, true); return; }
+
+const { data: authData, error: authError } = await _supabase.auth.signUp({
+email: semail, password: upin,
+options: { data: { username: uname, company_id: String(companyId), role: 'admin' } }
+});
+if (authError) {
+showToast("Kayıt Hatası", authError.message, true);
+return;
+}
+if (authData && authData.user) {
+await _supabase.from('profiles').update({
+company_id: companyId, role: 'admin', username: uname, active: true
+}).eq('id', authData.user.id);
+}
+
+closeModal('superAdminNewCompanyModal');
+['saCompanyInput','saUserInput','saPinInput','saEmailInput'].forEach(id => { let el = document.getElementById(id); if (el) el.value = ''; });
+await _supabase.auth.signOut();
+location.reload();
+} catch (e) {
+showToast("Hata", "Firma oluşturulamadı: " + e.message, true);
+}
+}
+
+function updateAppTitleUI() {
+let logoEl = document.getElementById('pageHeaderLogo');
+if (logoEl) logoEl.textContent = appTitleText.toUpperCase();
+let titleEl = document.getElementById('pageTitle');
+if (titleEl) titleEl.textContent = appTitleText.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim() || 'DEPO TAKİP';
+}
+
+
+
+function saveNewCompanyNameFromSettings() {
+let cInp = document.getElementById('settingsCompanyNameInput');
+if (!cInp) return;
+let newComp = sanitizeText(cInp.value.trim().toUpperCase());
+if (!newComp) { showToast("Hata", "Firma adı boş olamaz.", true); return; }
+updateCompanyAndTitle(newComp);
+}
+
+
+
+async function updateCompanyAndTitle(newCompName) {
+let oldComp = currentCompany;
+let newComp = sanitizeText(newCompName.trim().toUpperCase());
+if (!newComp || oldComp === newComp) return;
+
+systemUsers.forEach(u => { if (u.company === oldComp) u.company = newComp; });
+await saveUsersToCloud();
+
+let cfg = await getDocData(`company_${oldComp}_config`) || { depots: ['DEPO 1', 'DEPO 2'] };
+cfg.appTitleText = `📦 ${newComp}`;
+await setDocData(`company_${newComp}_config`, cfg);
+let prods = await getDocData(`company_${oldComp}_products`);
+if (prods) await setDocData(`company_${newComp}_products`, prods);
+let txs = await getDocData(`company_${oldComp}_transactions`);
+if (txs) await setDocData(`company_${newComp}_transactions`, txs);
+
+currentUser.company = newComp; currentCompany = newComp; appTitleText = `📦 ${newComp}`;
+try { 
+localStorage.setItem('sys_logged_user', JSON.stringify(currentUser)); 
+localStorage.setItem('sys_cached_company', currentCompany);
+} catch(e){}
+await initCompanyData(newComp);
+updateAuthAreaUI();
+showToast("Başarılı", "Firma adı güncellendi.");
+}
+
+
+
+async function renderSuperAdminPanel() {
+let container = document.getElementById('superAdminListContainer');
+if (!container) return;
+if (!currentUser || !currentUser.isSuperAdmin) { container.innerHTML = ''; return; }
+try {
+  let { data: comps } = await _supabase.from('companies').select('id, name').order('name');
+  let html = '';
+  (comps || []).forEach(c => {
+    let isCurrent = (currentCompany === c.name);
+    html += '<div style="background:' + (isCurrent ? 'rgba(37,99,235,0.1)' : 'var(--bg)') + '; padding:6px 10px; border-radius:8px; border:1.5px solid ' + (isCurrent ? 'var(--primary)' : 'var(--border)') + '; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="switchToCompany(\'' + c.name + '\')"><div><b style="font-size:11px; color:var(--primary);">🏢 ' + c.name + '</b> ' + (isCurrent ? '<span style="font-size:9px; background:var(--primary); color:#fff; padding:2px 5px; border-radius:4px; margin-left:4px;">AKTİF</span>' : '') + '</div><button class="btn btn-outline btn-sm" style="height:24px; font-size:10px;">Git</button></div>';
+  });
+  container.innerHTML = html || '<div style="font-size:11px; color:var(--muted); text-align:center;">Firma yok.</div>';
+} catch (e) { container.innerHTML = '<div style="font-size:11px; color:var(--muted);">Yüklenemedi.</div>'; }
+}
+
+async function switchToCompany(compName) {
+currentCompany = compName;
+appTitleText = `📦 ${compName}`;
+updateAppTitleUI();
+await initCompanyData(compName);
+await renderSuperAdminPanel();
+let superCard = document.getElementById('superAdminGlobalCard');
+if (superCard) superCard.style.display = 'block';
+showToast("Değiştirildi", `${compName} paneline geçildi.`);
+}
+
+
+
+function renderUserManagement() {
+if (!can('userManage')) return;
+let container = document.getElementById('userListContainer');
+if (!container) return;
+container.innerHTML = systemUsers.filter(u => u.company === currentCompany).map(u => `
+<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border:1.5px solid var(--border); border-radius:7px; background:var(--card); gap:5px; flex-wrap:wrap;">
+<div style="flex:1; min-width:70px;"><b style="font-size:11px;">${u.username}</b> <span style="font-size:8px; color:var(--primary); display:block; font-weight:800;">${u.role.toUpperCase()}</span></div>
+<div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
+<select style="width:90px; height:26px; font-size:10px; padding:0 3px;" onchange="changeUserRole('${u.username}', this.value)">
+<option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+<option value="düzenleyen" ${u.role==='düzenleyen'?'selected':''}>Düzenleyen</option>
+<option value="görüntüleyen" ${u.role==='görüntüleyen'?'selected':''}>Görüntüleyen</option>
+</select>
+<button class="btn btn-outline btn-sm" style="height:26px; font-size:9px; padding:0 6px;" onclick="openAdminChangeUserPinModal('${u.username}')">🔑 Şifre</button>
+<button class="btn btn-danger btn-sm" style="height:26px; font-size:9px; padding:0 6px;" onclick="showCustomConfirm('${u.username} silinsin mi?', () => deleteUser('${u.username}'))">🗑️</button>
+</div>
+</div>
+`).join('');
+}
+
+
+
+function openNewUserModal() { 
+let nInp = document.getElementById('newUsernameInput');
+let pInp = document.getElementById('newUserPinInput');
+if (nInp) nInp.value = ''; if (pInp) pInp.value = ''; 
+openModal('newUserModal');
+}
+
+
+function closeNewUserModal() {}
+
+
+async function saveNewUser() {
+if (!currentUser || currentUser.role !== 'admin') { showToast("Yetki Yok", "Kullanıcı eklemek için admin yetkisi gerekli.", true); return; }
+let nInp = document.getElementById('newUsernameInput');
+let pInp = document.getElementById('newUserPinInput');
+let rSel = document.getElementById('newUserRoleSelect');
+if (!nInp || !pInp || !rSel) return;
+let uname = sanitizeText(nInp.value.trim().toLowerCase());
+let upin = pInp.value.trim();
+if (!uname || !upin) { showToast("Eksik", "Bilgileri doldurun.", true); return; }
+systemUsers.push({ username: uname, pin: upin, role: rSel.value, active: true, company: currentCompany });
+await saveUsersToCloud(); closeModal('newUserModal'); closeNewUserModal(); renderUserManagement(); showToast("Başarılı", "Kullanıcı eklendi.");
+}
+
+
+// ===== KULLANICI ŞİFRE DEĞİŞTİRME (ADMIN) =====
+function openAdminChangeUserPinModal(username) {
+  if (!currentUser || currentUser.role !== 'admin') { showToast("Yetki Yok", "Şifre değiştirmek için admin yetkisi gerekli.", true); return; }
+  let tgt = document.getElementById('targetUsernameToChangePin');
+  let title = document.getElementById('adminModalTitle');
+  let n1 = document.getElementById('adminNewPinInput');
+  let n2 = document.getElementById('adminNewPinConfirmInput');
+  if (tgt) tgt.value = username || '';
+  if (title) title.textContent = '🔑 Şifre Değiştir: ' + (username || '');
+  if (n1) n1.value = '';
+  if (n2) n2.value = '';
+  openModal('adminChangeUserPinModal');
+}
+
+function closeAdminChangeUserPinModal() {
+  let n1 = document.getElementById('adminNewPinInput');
+  let n2 = document.getElementById('adminNewPinConfirmInput');
+  if (n1) n1.value = '';
+  if (n2) n2.value = '';
+  closeModal('adminChangeUserPinModal');
+}
+
+async function saveAdminChangedUserPin() {
+  if (!currentUser || currentUser.role !== 'admin') { showToast("Yetki Yok", "Bu işlem için admin yetkisi gerekli.", true); return; }
+  let tgtEl = document.getElementById('targetUsernameToChangePin');
+  let n1 = document.getElementById('adminNewPinInput');
+  let n2 = document.getElementById('adminNewPinConfirmInput');
+  if (!tgtEl || !n1 || !n2) return;
+  let uname = tgtEl.value.trim().toLowerCase();
+  let pin1 = n1.value.trim();
+  let pin2 = n2.value.trim();
+  if (!uname || !pin1) { showToast("Eksik", "Şifre alanları boş olamaz.", true); return; }
+  if (pin1.length < 6) { showToast("Şifre Kısa", "Şifre en az 6 karakter olmalıdır.", true); return; }
+  if (pin1 !== pin2) { showToast("Uyuşmuyor", "Şifreler birbiriyle uyuşmuyor.", true); return; }
+  let u = systemUsers.find(x => x.username === uname && x.company === currentCompany);
+  if (!u) { showToast("Bulunamadı", "Kullanıcı bulunamadı.", true); return; }
+  u.pin = pin1;
+  await saveUsersToCloud();
+  closeAdminChangeUserPinModal();
+  renderUserManagement();
+  showToast("Başarılı", uname + " kullanıcısının şifresi güncellendi.");
+}
+
+async function changeUserRole(uname, role) { if (!currentUser || currentUser.role !== 'admin') { showToast("Yetki Yok", "Rol değiştirmek için admin yetkisi gerekli.", true); return; } let u = systemUsers.find(x => x.username === uname && x.company === currentCompany); if(u) { u.role = role; await saveUsersToCloud(); showToast("Başarılı", "Rol değişti."); } }
+
+
+async function deleteUser(uname) {
+if (!currentUser || currentUser.role !== 'admin') { showToast("Yetki Yok", "Kullanıcı silmek için admin yetkisi gerekli.", true); return; }
+if (uname === currentUser.username) { showToast("Hata", "Kendinizi silemezsiniz.", true); return; }
+systemUsers = systemUsers.filter(x => !(x.username === uname && x.company === currentCompany));
+await saveUsersToCloud(); renderUserManagement(); showToast("Başarılı", "Silindi.");
+}

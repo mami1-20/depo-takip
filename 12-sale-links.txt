@@ -1,0 +1,253 @@
+// ============================================================
+// SALE LINKS (Satis Eslestermeleri / Porsiyon Tanimlari)
+// ============================================================
+// BAGIMSIZ MODUL. Mevcut dosyalardan hicbirine bagimli degildir.
+// Amac: AI/belge okundugunda gorulen SATIS ADINI (ornek "raki tek")
+//       bir STOK URUNUNE ve KATSAYIYA cevirmek.
+//   "raki tek"  -> Yeni Raki 100'luk x 0.04  (DEPO 1)
+//   "raki duble"-> Yeni Raki 100'luk x 0.08  (DEPO 1)
+//   "raki yarim"-> Yeni Raki 100'luk x 0.50  (DEPO 1)
+// Kural YOKSA sistem normal davranir (bozulmaz).
+//
+// Veri: Supabase tablosu 'sale_links' (firma bazli, RLS korumali)
+// ============================================================
+
+// ---------- YARDIMCI: firma id ----------
+async function slResolveCompanyId() {
+  try {
+    if (typeof resolveCompanyId === 'function' && typeof currentCompany !== 'undefined') {
+      return await resolveCompanyId(currentCompany);
+    }
+  } catch (e) {}
+  return null;
+}
+
+// ---------- OKUMA ----------
+async function slLoad() {
+  try {
+    let cid = await slResolveCompanyId();
+    if (!cid) return [];
+    let { data, error } = await _supabase
+      .from('sale_links')
+      .select('id, sale_name, product_id, factor, depot')
+      .eq('company_id', cid)
+      .order('id', { ascending: true });
+    if (error || !data) return [];
+    return data.map(r => ({
+      id: r.id,
+      sale: r.sale_name,
+      productId: r.product_id,
+      factor: Number(r.factor) || 1,
+      depot: r.depot || ''
+    }));
+  } catch (e) { return []; }
+}
+
+// ---------- YAZMA ----------
+async function slAdd(saleName, productId, factor, depot) {
+  let cid = await slResolveCompanyId();
+  if (!cid) return { ok: false, msg: 'Firma bulunamadi.' };
+  let { error } = await _supabase.from('sale_links').insert({
+    company_id: cid,
+    sale_name: String(saleName).trim().toLowerCase(),
+    product_id: productId,
+    factor: Number(factor),
+    depot: depot || null
+  });
+  if (error) return { ok: false, msg: error.message };
+  return { ok: true };
+}
+
+async function slDelete(id) {
+  let cid = await slResolveCompanyId();
+  if (!cid) return { ok: false };
+  let { error } = await _supabase.from('sale_links').delete().eq('company_id', cid).eq('id', id);
+  return { ok: !error, msg: error ? error.message : '' };
+}
+
+// ---------- ARAMA (AI / islem entegrasyonu bunu kullanir) ----------
+// Girilen adi (turkce-normalize) satis tanimlariyla karsilastirir.
+let __slCache = null;
+let __slCacheAt = 0;
+
+async function slGetAll(force) {
+  let now = Date.now();
+  if (!force && __slCache && (now - __slCacheAt) < 15000) return __slCache;
+  __slCache = await slLoad();
+  __slCacheAt = now;
+  return __slCache;
+}
+
+function slNormalize(s) {
+  try { if (typeof turkishNormalize === 'function') return turkishNormalize(String(s || '')); } catch (e) {}
+  return String(s || '').toLowerCase().trim();
+}
+
+// Donus: { productId, factor, depot } veya null
+async function resolvSaleLink(name) {
+  try {
+    let list = await slGetAll();
+    if (!list || !list.length) return null;
+    let n = slNormalize(name);
+    if (!n) return null;
+    // 1) tam eslesme
+    let hit = list.find(x => slNormalize(x.sale) === n);
+    // 2) icerme eslesmesi (en uzun satis adi kazanir — "raki duble" > "raki")
+    if (!hit) {
+      let cands = list.filter(x => {
+        let s = slNormalize(x.sale);
+        return s && (n.includes(s) || s.includes(n));
+      });
+      if (cands.length) {
+        cands.sort((a, b) => slNormalize(b.sale).length - slNormalize(a.sale).length);
+        hit = cands[0];
+      }
+    }
+    if (!hit) return null;
+    return { productId: hit.productId, factor: hit.factor, depot: hit.depot || '' };
+  } catch (e) { return null; }
+}
+
+// ---------- ARAYUZ ----------
+async function slRenderPanel() {
+  let box = document.getElementById('saleLinksList');
+  if (!box) return;
+  let list = await slGetAll(true);
+  let prods = (typeof products !== 'undefined' && products) ? products : [];
+  let depotsArr = (typeof depots !== 'undefined' && depots) ? depots : [];
+
+  if (!list.length) {
+    box.innerHTML = '<div style="font-size:11px;color:var(--muted);text-align:center;padding:10px;">Henüz tanım yok. Aşağıdan ekleyin.</div>';
+  } else {
+    box.innerHTML = list.map(x => {
+      let p = prods.find(pp => String(pp.id) === String(x.productId));
+      let pName = p ? p.name : (x.productId ? '#' + x.productId : '—');
+      return `<div style="display:flex;flex-direction:column;gap:4px;padding:8px;border:1.5px solid var(--border);border-radius:9px;background:var(--card);">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+          <b style="font-size:12px;color:var(--text);">${x.sale}</b>
+          <button class="btn btn-danger btn-sm" style="height:24px;font-size:9px;padding:0 7px;" onclick="slRemove(${x.id})">🗑️</button>
+        </div>
+        <div style="font-size:10px;color:var(--muted);">↳ ${pName} × <b style="color:var(--primary);">${x.factor}</b>${x.depot ? ' • 📍 ' + x.depot : ''}</div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function slProductOptions() {
+  let prods = (typeof products !== 'undefined' && products) ? products : [];
+  return '<option value="">Ürün seçiniz...</option>' + prods.map(p => `<option value="${p.id}">${p.name}${p.group ? ' (' + p.group + ')' : ''}</option>`).join('');
+}
+function slDepotOptions() {
+  let d = (typeof depots !== 'undefined' && depots) ? depots : [];
+  return '<option value="">Depo seçiniz...</option>' + d.map(x => `<option value="${x}">${x}</option>`).join('');
+}
+
+async function slSaveNew() {
+  try {
+    if (typeof currentUser === 'undefined' || !currentUser || currentUser.role !== 'admin') {
+      showToast('Yetki Yok', 'Bu tanımı yalnızca firma admini düzenleyebilir.', true); return;
+    }
+    let sEl = document.getElementById('slSaleInput');
+    let pEl = document.getElementById('slProductSelect');
+    let fEl = document.getElementById('slFactorInput');
+    let dEl = document.getElementById('slDepotSelect');
+    let sale = sEl ? sEl.value.trim() : '';
+    let pid = pEl ? pEl.value : '';
+    let factor = fEl ? parseFloat(String(fEl.value).replace(',', '.')) : NaN;
+    let depot = dEl ? dEl.value : '';
+    if (!sale) { showToast('Eksik', 'Satış adı girin.', true); return; }
+    if (!pid) { showToast('Eksik', 'Düşülecek ürünü seçin.', true); return; }
+    if (!factor || factor <= 0) { showToast('Eksik', 'Geçerli bir katsayı girin (örn 0.04).', true); return; }
+    if (!depot) { showToast('Eksik', 'Depo seçin.', true); return; }
+    let r = await slAdd(sale, Number(pid), factor, depot);
+    if (!r.ok) { showToast('Hata', r.msg || 'Kaydedilemedi.', true); return; }
+    if (sEl) sEl.value = '';
+    if (fEl) fEl.value = '';
+    await slRenderPanel();
+    showToast('Başarılı', 'Tanım eklendi. Okutunca bu üründen düşecek.');
+  } catch (e) {
+    console.error('[depo-takip] satış tanımı ekleme hatası:', e);
+    showToast('Hata', 'Tanım eklenemedi.', true);
+  }
+}
+
+async function slRemove(id) {
+  try {
+    if (typeof currentUser === 'undefined' || !currentUser || currentUser.role !== 'admin') return;
+    let r = await slDelete(id);
+    if (!r.ok) { showToast('Hata', r.msg || 'Silinemedi.', true); return; }
+    await slRenderPanel();
+    showToast('Başarılı', 'Tanım silindi.');
+  } catch (e) { console.error(e); }
+}
+
+// ---------- AYAR EKRANINA BOLUM ENJEKTE ET (HTML'e dokunmadan) ----------
+function slInjectPanel() {
+  try {
+    // Sadece admin gorsun
+    if (typeof currentUser === 'undefined' || !currentUser || currentUser.role !== 'admin') return;
+    if (document.getElementById('saleLinksAcc')) return; // zaten var
+    let page = document.getElementById('page-yonetim');
+    if (!page) return;
+
+    let acc = document.createElement('div');
+    acc.className = 'acc';
+    acc.id = 'saleLinksAcc';
+    acc.innerHTML = `
+      <button type="button" class="acc-head" onclick="toggleAcc(this)">
+        <span class="acc-ico" style="background:rgba(37,99,235,0.12);border-color:var(--primary);">📐</span>
+        <span class="acc-title">Porsiyon / Ölçü Tanımları</span>
+        <span class="acc-caret">▾</span>
+      </button>
+      <div class="acc-body">
+        <div class="card" style="margin:0 0 8px;">
+          <div style="font-size:11px;color:var(--muted);line-height:1.4;margin-bottom:8px;">
+            Belgede/fişte görülen <b>satış adını</b> bir <b>stok ürününe</b> ve <b>katsayıya</b> bağlayın.
+            Örn: <b>raki tek</b> → Yeni Rakı 100'lük × <b>0.04</b>. Okutunca o üründen bu kadar düşer.
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="field" style="margin:0;">
+              <label>Satış Adı</label>
+              <input type="text" id="slSaleInput" placeholder="Örn: raki tek">
+            </div>
+            <div class="field" style="margin:0;">
+              <label>Düşülecek Ürün</label>
+              <select id="slProductSelect">${slProductOptions()}</select>
+            </div>
+            <div class="field" style="margin:0;">
+              <label>Katsayı (örn 0.04)</label>
+              <input type="number" id="slFactorInput" step="any" placeholder="0.04">
+            </div>
+            <div class="field" style="margin:0;">
+              <label>Depo</label>
+              <select id="slDepotSelect">${slDepotOptions()}</select>
+            </div>
+            <button class="btn btn-success" style="height:38px;font-size:11px;" onclick="slSaveNew()">➕ Tanım Ekle</button>
+          </div>
+        </div>
+        <div id="saleLinksList" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>`;
+    // En uste ekle (Urun & Envanter bolumunun ustune)
+    page.insertBefore(acc, page.firstChild);
+    slRenderPanel();
+  } catch (e) { console.error('[depo-takip] satış paneli hatası:', e); }
+}
+
+// Yonetim sayfasi acildiginda paneli tazele
+(function () {
+  function hook() {
+    try {
+      if (typeof window.switchPage === 'function' && !window.__slHooked) {
+        window.__slHooked = true;
+        let orig = window.switchPage;
+        window.switchPage = function (pageId) {
+          let r = orig.apply(this, arguments);
+          try { if (pageId === 'yonetim') setTimeout(slInjectPanel, 60); } catch (e) {}
+          return r;
+        };
+      }
+    } catch (e) {}
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hook);
+  else hook();
+})();
